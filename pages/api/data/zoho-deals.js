@@ -27,6 +27,7 @@ export default async function handler(req, res) {
           params: {
             fields: 'id,Deal_Name,Amount,Stage,Closing_Date,Owner,Probability',
             per_page: 200,
+            organization_id: process.env.ZOHO_ORGANIZATION_ID,
           },
         });
         break; // Success, exit loop
