@@ -195,7 +195,7 @@ export default function SalesDashboard({ zohoAccessToken, user }) {
               <div className="section-title">Alerts</div>
               <div className="metric-grid">
                 <div className="metric-card alert">
-                  <div className="metric-label">⚠ Deals >60 Days in Stage</div>
+                  <div className="metric-label">⚠ Deals {`>`}60 Days in Stage</div>
                   <div className="metric-value">{deals.stuckDeals.length}</div>
                   <div className="metric-subtext">
                     {deals.stuckDeals.map((d) => d.name).join(', ')}
