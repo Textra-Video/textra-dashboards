@@ -276,6 +276,199 @@ body {
   height: 320px;
 }
 
+/* ---------- Client search ---------- */
+
+.search-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(26, 113, 177, 0.1);
+}
+
+.search-results {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.search-empty {
+  color: var(--muted);
+  font-size: 14px;
+  padding: 8px 4px;
+}
+
+.search-result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.search-result-row:hover {
+  background: var(--bg);
+  border-color: var(--blue);
+}
+
+.search-result-name {
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.search-result-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---------- Clickable deal chips (Alerts) ---------- */
+
+.deal-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.deal-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.deal-chip:hover {
+  transform: translateY(-2px);
+  opacity: 0.92;
+}
+
+.deal-chip.alert {
+  background: linear-gradient(135deg, #b03434 0%, var(--danger) 100%);
+  color: white;
+}
+
+.deal-chip-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.deal-chip-meta {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* ---------- Client detail deal list ---------- */
+
+.deal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.deal-list-row {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.deal-list-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.deal-list-name {
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.deal-list-stage {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.deal-list-stage.won {
+  background: rgba(12, 163, 12, 0.1);
+  color: var(--success);
+  border-color: rgba(12, 163, 12, 0.3);
+}
+
+.deal-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---------- Login activity log ---------- */
+
+.login-log-card {
+  margin-top: 12px;
+}
+
+.login-log-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.login-log-caret {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.login-log-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login-log-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.login-log-row:last-child {
+  border-bottom: none;
+}
+
 /* ---------- Auth status (legacy, kept for compatibility) ---------- */
 
 .auth-buttons {

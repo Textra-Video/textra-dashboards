@@ -3,12 +3,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import SalesDashboard from '../components/SalesDashboard';
 import FinanceDashboard from '../components/FinanceDashboard';
-
-// localStorage.getItem returns the literal string "undefined" if a bad
-// value was ever written, and that string is truthy - so guard for it.
-function isValidToken(value) {
-  return Boolean(value) && value !== 'undefined' && value !== 'null';
-}
+import { isValidToken } from '../lib/tokenUtils';
 
 export default function Dashboards() {
   const router = useRouter();
@@ -20,6 +15,7 @@ export default function Dashboards() {
   const [xeroTenantId, setXeroTenantId] = useState(null);
   const [loginLog, setLoginLog] = useState([]);
   const [oauthError, setOauthError] = useState(null);
+  const [showLoginLog, setShowLoginLog] = useState(false);
 
   useEffect(() => {
     // Check if user is logged in
@@ -94,7 +90,6 @@ export default function Dashboards() {
 
   const handleLogout = () => {
     localStorage.removeItem('textraUser');
-    localStorage.removeItem('textraLoginLog');
     router.push('/');
   };
 
@@ -152,6 +147,29 @@ export default function Dashboards() {
             user={user}
           />
         )}
+
+        <div className="chart-container login-log-card">
+          <button className="login-log-toggle" onClick={() => setShowLoginLog((v) => !v)}>
+            <span className="chart-title" style={{ marginBottom: 0 }}>
+              Login Activity ({loginLog.length}) — this device
+            </span>
+            <span className="login-log-caret">{showLoginLog ? '▲' : '▼'}</span>
+          </button>
+          {showLoginLog && (
+            <div className="login-log-list">
+              {loginLog.length === 0 && <p className="last-updated">No login activity recorded yet.</p>}
+              {loginLog
+                .slice()
+                .reverse()
+                .map((entry, i) => (
+                  <div key={i} className="login-log-row">
+                    <span>{entry.user}</span>
+                    <span className="last-updated">{new Date(entry.timestamp).toLocaleString('en-GB')}</span>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

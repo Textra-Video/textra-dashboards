@@ -14,6 +14,12 @@ export default function Home() {
     // Default credentials
     if (username === 'admin' && password === 'admin') {
       localStorage.setItem('textraUser', username);
+
+      // Browser-local login audit log, capped to the most recent 50 entries.
+      const log = JSON.parse(localStorage.getItem('textraLoginLog')) || [];
+      log.push({ user: username, timestamp: new Date().toISOString() });
+      localStorage.setItem('textraLoginLog', JSON.stringify(log.slice(-50)));
+
       router.push('/dashboards');
     } else {
       setError('Invalid username or password. Default: admin / admin');
