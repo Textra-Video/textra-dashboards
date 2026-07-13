@@ -3,6 +3,12 @@ import { useRouter } from 'next/router';
 import SalesDashboard from '../components/SalesDashboard';
 import FinanceDashboard from '../components/FinanceDashboard';
 
+// localStorage.getItem returns the literal string "undefined" if a bad
+// value was ever written, and that string is truthy - so guard for it.
+function isValidToken(value) {
+  return Boolean(value) && value !== 'undefined' && value !== 'null';
+}
+
 export default function Dashboards() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -28,10 +34,18 @@ export default function Dashboards() {
     const xeroToken = localStorage.getItem('xeroAccessToken');
     const tenantId = localStorage.getItem('xeroTenantId');
 
-    if (zohoToken) setZohoAccessToken(zohoToken);
-    if (zohoDomain) setZohoApiDomain(zohoDomain);
-    if (xeroToken) setXeroAccessToken(xeroToken);
-    if (tenantId) setXeroTenantId(tenantId);
+    if (isValidToken(zohoToken)) {
+      setZohoAccessToken(zohoToken);
+    } else if (zohoToken) {
+      localStorage.removeItem('zohoAccessToken');
+    }
+    if (isValidToken(zohoDomain)) {
+      setZohoApiDomain(zohoDomain);
+    } else if (zohoDomain) {
+      localStorage.removeItem('zohoApiDomain');
+    }
+    if (isValidToken(xeroToken)) setXeroAccessToken(xeroToken);
+    if (isValidToken(tenantId)) setXeroTenantId(tenantId);
 
     // Load login log
     const log = JSON.parse(localStorage.getItem('textraLoginLog')) || [];
@@ -46,11 +60,11 @@ export default function Dashboards() {
     const zohoToken = params.get('zoho_token');
     const xeroToken = params.get('xero_token');
 
-    if (zohoToken) {
+    if (isValidToken(zohoToken)) {
       localStorage.setItem('zohoAccessToken', zohoToken);
       setZohoAccessToken(zohoToken);
       const apiDomain = params.get('zoho_api_domain');
-      if (apiDomain) {
+      if (isValidToken(apiDomain)) {
         localStorage.setItem('zohoApiDomain', apiDomain);
         setZohoApiDomain(apiDomain);
       }
