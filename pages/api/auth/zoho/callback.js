@@ -26,20 +26,15 @@ export default async function handler(req, res) {
 
     const { access_token, refresh_token, expires_in } = tokenResponse.data;
 
-    // Store tokens securely (in production: database or secure session)
-    // For now, return to frontend to store in localStorage
-    res.status(200).json({
-      success: true,
-      accessToken: access_token,
-      refreshToken: refresh_token,
-      expiresIn: expires_in,
-    });
+    // Redirect back to dashboard with token in URL fragment
+    // Fragment (#) is not sent to server, so it's safe for client-side token storage
+    res.redirect(
+      `/dashboards#zoho_token=${encodeURIComponent(access_token)}&zoho_refresh=${encodeURIComponent(refresh_token || '')}&zoho_expires=${expires_in}`
+    );
   } catch (error) {
     console.error('Zoho OAuth error:', error.response?.data || error.message);
     console.error('Full error:', error.response);
-    res.status(500).json({
-      error: 'Failed to authenticate with Zoho',
-      details: error.response?.data?.error_description || error.response?.data?.error || error.message
-    });
+    const errorMsg = error.response?.data?.error_description || error.response?.data?.error || error.message;
+    res.redirect(`/dashboards#zoho_error=${encodeURIComponent(errorMsg)}`);
   }
 }

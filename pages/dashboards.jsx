@@ -36,37 +36,28 @@ export default function Dashboards() {
   }, [router]);
 
   useEffect(() => {
-    // Handle OAuth callback
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const state = params.get('state');
+    // Handle OAuth callback from URL fragment
+    const fragment = window.location.hash.substring(1);
+    const params = new URLSearchParams(fragment);
 
-    if (code && state === 'zoho') {
-      // Exchange Zoho code for token
-      fetch('/api/auth/zoho/callback?code=' + code)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            localStorage.setItem('zohoAccessToken', data.accessToken);
-            setZohoAccessToken(data.accessToken);
-            window.history.replaceState({}, document.title, '/dashboards');
-          }
-        });
+    const zohoToken = params.get('zoho_token');
+    const xeroToken = params.get('xero_token');
+
+    if (zohoToken) {
+      localStorage.setItem('zohoAccessToken', zohoToken);
+      setZohoAccessToken(zohoToken);
+      window.history.replaceState({}, document.title, '/dashboards');
     }
 
-    if (code && state === 'xero') {
-      // Exchange Xero code for token
-      fetch('/api/auth/xero/callback?code=' + code)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            localStorage.setItem('xeroAccessToken', data.accessToken);
-            // Extract tenant ID from Xero connections
-            localStorage.setItem('xeroTenantId', 'your-tenant-id');
-            setXeroAccessToken(data.accessToken);
-            window.history.replaceState({}, document.title, '/dashboards');
-          }
-        });
+    if (xeroToken) {
+      localStorage.setItem('xeroAccessToken', xeroToken);
+      const tenantId = params.get('xero_tenant');
+      if (tenantId) {
+        localStorage.setItem('xeroTenantId', tenantId);
+        setXeroTenantId(tenantId);
+      }
+      setXeroAccessToken(xeroToken);
+      window.history.replaceState({}, document.title, '/dashboards');
     }
   }, []);
 
