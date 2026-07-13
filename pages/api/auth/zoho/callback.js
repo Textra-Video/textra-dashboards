@@ -26,6 +26,8 @@ export default async function handler(req, res) {
 
     const { access_token, refresh_token, expires_in, api_domain } = tokenResponse.data;
 
+    console.log('Zoho token exchange response keys:', Object.keys(tokenResponse.data), 'api_domain:', api_domain);
+
     // Zoho tokens are bound to the datacenter that issued them - api_domain
     // tells us exactly which endpoint to call, so we don't have to guess.
     res.redirect(

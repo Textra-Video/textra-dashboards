@@ -95,6 +95,9 @@ export default async function handler(req, res) {
       status: error.response?.status,
       data: error.response?.data,
       message: error.message,
+      apiDomainReceived: apiDomain,
+      accessTokenPrefix: accessToken?.slice(0, 12),
+      accessTokenLength: accessToken?.length,
     });
     res.status(500).json({
       error: 'Failed to fetch Zoho data',
