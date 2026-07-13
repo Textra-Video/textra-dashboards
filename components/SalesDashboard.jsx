@@ -39,7 +39,8 @@ export default function SalesDashboard({ zohoAccessToken, user }) {
         setLastUpdated(new Date().toLocaleTimeString('en-GB'));
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch deals');
+      const errorMsg = err.response?.data?.details || err.response?.data?.error || 'Failed to fetch deals';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
