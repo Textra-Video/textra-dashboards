@@ -14,7 +14,7 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
-export default function SalesDashboard({ zohoAccessToken, user }) {
+export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, user }) {
   const [deals, setDeals] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -32,6 +32,7 @@ export default function SalesDashboard({ zohoAccessToken, user }) {
     try {
       const response = await axios.post('/api/data/zoho-deals', {
         accessToken: zohoAccessToken,
+        apiDomain: zohoApiDomain,
       });
 
       if (response.data.success) {

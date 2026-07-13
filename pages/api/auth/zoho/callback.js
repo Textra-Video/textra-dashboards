@@ -24,12 +24,12 @@ export default async function handler(req, res) {
       }
     );
 
-    const { access_token, refresh_token, expires_in } = tokenResponse.data;
+    const { access_token, refresh_token, expires_in, api_domain } = tokenResponse.data;
 
-    // Redirect back to dashboard with token in URL fragment
-    // Fragment (#) is not sent to server, so it's safe for client-side token storage
+    // Zoho tokens are bound to the datacenter that issued them - api_domain
+    // tells us exactly which endpoint to call, so we don't have to guess.
     res.redirect(
-      `/dashboards#zoho_token=${encodeURIComponent(access_token)}&zoho_refresh=${encodeURIComponent(refresh_token || '')}&zoho_expires=${expires_in}`
+      `/dashboards#zoho_token=${encodeURIComponent(access_token)}&zoho_refresh=${encodeURIComponent(refresh_token || '')}&zoho_expires=${expires_in}&zoho_api_domain=${encodeURIComponent(api_domain || '')}`
     );
   } catch (error) {
     console.error('Zoho OAuth error:', error.response?.data || error.message);

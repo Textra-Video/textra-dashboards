@@ -8,6 +8,7 @@ export default function Dashboards() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('sales');
   const [zohoAccessToken, setZohoAccessToken] = useState(null);
+  const [zohoApiDomain, setZohoApiDomain] = useState(null);
   const [xeroAccessToken, setXeroAccessToken] = useState(null);
   const [xeroTenantId, setXeroTenantId] = useState(null);
   const [loginLog, setLoginLog] = useState([]);
@@ -23,10 +24,12 @@ export default function Dashboards() {
 
     // Load tokens from localStorage
     const zohoToken = localStorage.getItem('zohoAccessToken');
+    const zohoDomain = localStorage.getItem('zohoApiDomain');
     const xeroToken = localStorage.getItem('xeroAccessToken');
     const tenantId = localStorage.getItem('xeroTenantId');
 
     if (zohoToken) setZohoAccessToken(zohoToken);
+    if (zohoDomain) setZohoApiDomain(zohoDomain);
     if (xeroToken) setXeroAccessToken(xeroToken);
     if (tenantId) setXeroTenantId(tenantId);
 
@@ -46,6 +49,11 @@ export default function Dashboards() {
     if (zohoToken) {
       localStorage.setItem('zohoAccessToken', zohoToken);
       setZohoAccessToken(zohoToken);
+      const apiDomain = params.get('zoho_api_domain');
+      if (apiDomain) {
+        localStorage.setItem('zohoApiDomain', apiDomain);
+        setZohoApiDomain(apiDomain);
+      }
       window.history.replaceState({}, document.title, '/dashboards');
     }
 
@@ -90,7 +98,9 @@ export default function Dashboards() {
         </div>
       </div>
 
-      {activeTab === 'sales' && <SalesDashboard zohoAccessToken={zohoAccessToken} user={user} />}
+      {activeTab === 'sales' && (
+        <SalesDashboard zohoAccessToken={zohoAccessToken} zohoApiDomain={zohoApiDomain} user={user} />
+      )}
       {activeTab === 'finance' && (
         <FinanceDashboard
           xeroAccessToken={xeroAccessToken}

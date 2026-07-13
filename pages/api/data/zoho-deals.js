@@ -1,21 +1,24 @@
 import axios from 'axios';
 
 export default async function handler(req, res) {
-  const { accessToken } = req.body;
+  const { accessToken, apiDomain } = req.body;
 
   if (!accessToken) {
     return res.status(401).json({ error: 'Access token required' });
   }
 
   try {
-    // Fetch deals from Zoho CRM
-    // Try both standard and datacenter-specific endpoints
+    // Zoho tokens are only valid against the datacenter that issued them.
+    // apiDomain comes from the OAuth token exchange response, so use it
+    // when we have it instead of guessing which datacenter to call.
     let dealsResponse;
-    const endpoints = [
-      'https://www.zohoapis.com/crm/v2/Deals',
-      'https://www.zohoapis.eu/crm/v2/Deals', // EU datacenter
-      'https://www.zohoapis.in/crm/v2/Deals', // India datacenter
-    ];
+    const endpoints = apiDomain
+      ? [`${apiDomain}/crm/v2/Deals`]
+      : [
+          'https://www.zohoapis.com/crm/v2/Deals',
+          'https://www.zohoapis.eu/crm/v2/Deals',
+          'https://www.zohoapis.in/crm/v2/Deals',
+        ];
 
     for (const endpoint of endpoints) {
       try {
