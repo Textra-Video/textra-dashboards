@@ -8,15 +8,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Exchange authorization code for access token
+    // Zoho can have multiple datacenters - try the standard endpoint first
+    // If it fails, the error will indicate the correct datacenter
     const tokenResponse = await axios.post(
       'https://accounts.zoho.com/oauth/v2/token',
+      null,
       {
-        grant_type: 'authorization_code',
-        client_id: process.env.ZOHO_CLIENT_ID,
-        client_secret: process.env.ZOHO_CLIENT_SECRET,
-        redirect_uri: process.env.ZOHO_REDIRECT_URI,
-        code,
+        params: {
+          grant_type: 'authorization_code',
+          client_id: process.env.ZOHO_CLIENT_ID,
+          client_secret: process.env.ZOHO_CLIENT_SECRET,
+          redirect_uri: process.env.ZOHO_REDIRECT_URI,
+          code,
+        }
       }
     );
 
@@ -32,6 +36,10 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Zoho OAuth error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to authenticate with Zoho' });
+    console.error('Full error:', error.response);
+    res.status(500).json({
+      error: 'Failed to authenticate with Zoho',
+      details: error.response?.data?.error_description || error.response?.data?.error || error.message
+    });
   }
 }
