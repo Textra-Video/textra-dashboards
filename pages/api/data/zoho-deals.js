@@ -9,19 +9,36 @@ export default async function handler(req, res) {
 
   try {
     // Fetch deals from Zoho CRM
-    const dealsResponse = await axios.get(
+    // Try both standard and datacenter-specific endpoints
+    let dealsResponse;
+    const endpoints = [
       'https://www.zohoapis.com/crm/v2/Deals',
-      {
-        headers: {
-          Authorization: `Zoho-oauthtoken ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        params: {
-          fields: 'id,Deal_Name,Amount,Stage,Closing_Date,Owner,Probability',
-          per_page: 200,
-        },
+      'https://www.zohoapis.eu/crm/v2/Deals', // EU datacenter
+      'https://www.zohoapis.in/crm/v2/Deals', // India datacenter
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        dealsResponse = await axios.get(endpoint, {
+          headers: {
+            Authorization: `Zoho-oauthtoken ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          params: {
+            fields: 'id,Deal_Name,Amount,Stage,Closing_Date,Owner,Probability',
+            per_page: 200,
+          },
+        });
+        break; // Success, exit loop
+      } catch (err) {
+        if (endpoint === endpoints[endpoints.length - 1]) {
+          // Last endpoint, re-throw error
+          throw err;
+        }
+        // Try next endpoint
+        continue;
       }
-    );
+    }
 
     const deals = dealsResponse.data.data || [];
 
@@ -71,7 +88,14 @@ export default async function handler(req, res) {
       },
     });
   } catch (error) {
-    console.error('Zoho data fetch error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to fetch Zoho data' });
+    console.error('Zoho data fetch error:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+    });
+    res.status(500).json({
+      error: 'Failed to fetch Zoho data',
+      details: error.response?.data?.message || error.message,
+    });
   }
 }
