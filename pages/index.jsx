@@ -1,25 +1,64 @@
-import React from 'react';
-import Link from 'next/link';
+import React, { useState } from 'react';
+import { useRouter } from 'next/router';
 
 export default function Home() {
+  const router = useRouter();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+
+    // Default credentials
+    if (username === 'admin' && password === 'admin') {
+      localStorage.setItem('textraUser', username);
+      router.push('/dashboards');
+    } else {
+      setError('Invalid username or password. Default: admin / admin');
+      setPassword('');
+    }
+  };
+
   return (
-    <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>
-      <h1>Textra Video Operational Dashboards</h1>
-      <p>Live analytics powered by Zoho CRM and Xero</p>
-      <div style={{ marginTop: '30px' }}>
-        <Link href="/dashboards">
-          <button style={{
-            padding: '12px 24px',
-            fontSize: '16px',
-            backgroundColor: '#0070f3',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}>
-            View Dashboards
+    <div className="login-container">
+      <div className="login-box">
+        <h1 className="login-title">Textra Video</h1>
+        <p style={{ textAlign: 'center', marginBottom: '30px', color: '#666' }}>
+          Operational Dashboards
+        </p>
+
+        {error && (
+          <div className="error" style={{ marginBottom: '20px' }}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleLogin}>
+          <input
+            type="text"
+            className="login-input"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            className="login-input"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button type="submit" className="login-button">
+            Login
           </button>
-        </Link>
+        </form>
+
+        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '12px', color: '#999' }}>
+          Demo Credentials: admin / admin
+        </p>
       </div>
     </div>
   );
