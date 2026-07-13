@@ -8,10 +8,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Zoho can have multiple datacenters - try the standard endpoint first
-    // If it fails, the error will indicate the correct datacenter
+    // Textra's Zoho account is on the EU datacenter (crmplus.zoho.eu) - the
+    // auth code was issued by accounts.zoho.eu and can only be redeemed there.
     const tokenResponse = await axios.post(
-      'https://accounts.zoho.com/oauth/v2/token',
+      'https://accounts.zoho.eu/oauth/v2/token',
       null,
       {
         params: {

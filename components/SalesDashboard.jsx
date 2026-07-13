@@ -60,7 +60,9 @@ export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, user })
           <p>Please authenticate with Zoho CRM to view sales data</p>
           <button
             onClick={() => {
-              const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=ZohoCRM.modules.READ&client_id=${process.env.NEXT_PUBLIC_ZOHO_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_ZOHO_REDIRECT_URI)}`;
+              // Textra's Zoho account is on the EU datacenter (crmplus.zoho.eu) -
+              // auth codes issued here are only redeemable at accounts.zoho.eu.
+              const authUrl = `https://accounts.zoho.eu/oauth/v2/auth?scope=ZohoCRM.modules.READ&client_id=${process.env.NEXT_PUBLIC_ZOHO_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_ZOHO_REDIRECT_URI)}`;
               window.location.href = authUrl;
             }}
             style={{
