@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 import SalesDashboard from '../components/SalesDashboard';
 import FinanceDashboard from '../components/FinanceDashboard';
@@ -100,7 +101,15 @@ export default function Dashboards() {
   return (
     <div className="dashboard">
       <div className="dashboard-header">
-        <div className="dashboard-logo">Textra Video</div>
+        <div className="dashboard-logo">
+          <Image
+            src="/logos/textra-video-logo.png"
+            alt="Textra Video"
+            width={150}
+            height={21}
+            priority
+          />
+        </div>
         <div className="dashboard-nav">
           <button
             className={`nav-button ${activeTab === 'sales' ? 'active' : ''}`}

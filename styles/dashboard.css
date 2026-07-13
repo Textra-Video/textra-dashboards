@@ -46,10 +46,18 @@ body {
 }
 
 .dashboard-logo {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  color: #fff;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  padding: 7px 14px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-logo img {
+  display: block;
+  height: 21px;
+  width: auto;
 }
 
 .dashboard-nav {
@@ -379,6 +387,12 @@ body {
   margin-bottom: 30px;
   text-align: center;
   color: var(--navy);
+}
+
+.login-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
 }
 
 .login-input {

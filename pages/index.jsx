@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 
 export default function Home() {
@@ -23,7 +24,15 @@ export default function Home() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h1 className="login-title">Textra Video</h1>
+        <div className="login-logo">
+          <Image
+            src="/logos/textra-video-logo.png"
+            alt="Textra Video"
+            width={220}
+            height={31}
+            priority
+          />
+        </div>
         <p style={{ textAlign: 'center', marginBottom: '30px', color: '#666' }}>
           Operational Dashboards
         </p>
