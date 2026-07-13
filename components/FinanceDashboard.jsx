@@ -65,21 +65,13 @@ export default function FinanceDashboard({ xeroAccessToken, xeroTenantId, user }
   if (!xeroAccessToken || !xeroTenantId) {
     return (
       <div className="dashboard-content">
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
+        <div className="connect-prompt">
           <p>Please authenticate with Xero to view financial data</p>
           <button
+            className="connect-button"
             onClick={() => {
               const authUrl = `https://login.xero.com/identity/connect/authorize?response_type=code&client_id=${process.env.NEXT_PUBLIC_XERO_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_XERO_REDIRECT_URI)}&scope=offline_access%20accounting`;
               window.location.href = authUrl;
-            }}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: '#273572',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              marginTop: '1rem',
             }}
           >
             Connect Xero
@@ -93,35 +85,16 @@ export default function FinanceDashboard({ xeroAccessToken, xeroTenantId, user }
     <div className="dashboard-content">
       <div className="section-title">Financial Position</div>
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-        }}
-      >
+      <div className="dashboard-toolbar">
         <div>
-          {lastUpdated && <p style={{ fontSize: '12px', color: '#999' }}>Last updated: {lastUpdated}</p>}
+          {lastUpdated && <p className="last-updated">Last updated: {lastUpdated}</p>}
         </div>
-        <button
-          onClick={fetchFinancials}
-          disabled={loading}
-          style={{
-            padding: '0.5rem 1rem',
-            background: '#4da89a',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.6 : 1,
-          }}
-        >
+        <button className="refresh-button" onClick={fetchFinancials} disabled={loading}>
           {loading ? 'Loading...' : 'Refresh Data'}
         </button>
       </div>
 
-      {error && <p style={{ color: '#D03B3B', marginBottom: '1rem' }}>Error: {error}</p>}
+      {error && <div className="error">Error: {error}</div>}
 
       {financials && (
         <>

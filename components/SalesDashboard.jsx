@@ -56,23 +56,15 @@ export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, user })
   if (!zohoAccessToken) {
     return (
       <div className="dashboard-content">
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
+        <div className="connect-prompt">
           <p>Please authenticate with Zoho CRM to view sales data</p>
           <button
+            className="connect-button"
             onClick={() => {
               // Textra's Zoho account is on the EU datacenter (crmplus.zoho.eu) -
               // auth codes issued here are only redeemable at accounts.zoho.eu.
               const authUrl = `https://accounts.zoho.eu/oauth/v2/auth?scope=ZohoCRM.modules.READ&client_id=${process.env.NEXT_PUBLIC_ZOHO_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_ZOHO_REDIRECT_URI)}`;
               window.location.href = authUrl;
-            }}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: '#273572',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              marginTop: '1rem',
             }}
           >
             Connect Zoho CRM
@@ -86,35 +78,16 @@ export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, user })
     <div className="dashboard-content">
       <div className="section-title">Sales Pipeline & Revenue</div>
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-        }}
-      >
+      <div className="dashboard-toolbar">
         <div>
-          {lastUpdated && <p style={{ fontSize: '12px', color: '#999' }}>Last updated: {lastUpdated}</p>}
+          {lastUpdated && <p className="last-updated">Last updated: {lastUpdated}</p>}
         </div>
-        <button
-          onClick={fetchDeals}
-          disabled={loading}
-          style={{
-            padding: '0.5rem 1rem',
-            background: '#4da89a',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.6 : 1,
-          }}
-        >
+        <button className="refresh-button" onClick={fetchDeals} disabled={loading}>
           {loading ? 'Loading...' : 'Refresh Data'}
         </button>
       </div>
 
-      {error && <p style={{ color: '#D03B3B', marginBottom: '1rem' }}>Error: {error}</p>}
+      {error && <div className="error">Error: {error}</div>}
 
       {deals && (
         <>

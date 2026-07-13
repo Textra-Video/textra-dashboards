@@ -120,28 +120,30 @@ export default function Dashboards() {
         </div>
       </div>
 
-      {oauthError && (
-        <div className="error" style={{ margin: '0 20px 20px' }}>
-          OAuth error: {oauthError}
-          <button
-            onClick={() => setOauthError(null)}
-            style={{ marginLeft: '12px', background: 'none', border: 'none', color: '#721c24', cursor: 'pointer', textDecoration: 'underline' }}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
+      <div className="dashboard-container">
+        {oauthError && (
+          <div className="error">
+            OAuth error: {oauthError}
+            <button
+              onClick={() => setOauthError(null)}
+              style={{ marginLeft: '12px', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
-      {activeTab === 'sales' && (
-        <SalesDashboard zohoAccessToken={zohoAccessToken} zohoApiDomain={zohoApiDomain} user={user} />
-      )}
-      {activeTab === 'finance' && (
-        <FinanceDashboard
-          xeroAccessToken={xeroAccessToken}
-          xeroTenantId={xeroTenantId}
-          user={user}
-        />
-      )}
+        {activeTab === 'sales' && (
+          <SalesDashboard zohoAccessToken={zohoAccessToken} zohoApiDomain={zohoApiDomain} user={user} />
+        )}
+        {activeTab === 'finance' && (
+          <FinanceDashboard
+            xeroAccessToken={xeroAccessToken}
+            xeroTenantId={xeroTenantId}
+            user={user}
+          />
+        )}
+      </div>
     </div>
   );
 }
