@@ -18,6 +18,7 @@ export default function Dashboards() {
   const [xeroAccessToken, setXeroAccessToken] = useState(null);
   const [xeroTenantId, setXeroTenantId] = useState(null);
   const [loginLog, setLoginLog] = useState([]);
+  const [oauthError, setOauthError] = useState(null);
 
   useEffect(() => {
     // Check if user is logged in
@@ -59,6 +60,13 @@ export default function Dashboards() {
 
     const zohoToken = params.get('zoho_token');
     const xeroToken = params.get('xero_token');
+    const zohoError = params.get('zoho_error');
+    const xeroError = params.get('xero_error');
+
+    if (zohoError || xeroError) {
+      setOauthError(`${zohoError ? `Zoho: ${zohoError}` : ''}${zohoError && xeroError ? ' | ' : ''}${xeroError ? `Xero: ${xeroError}` : ''}`);
+      window.history.replaceState({}, document.title, '/dashboards');
+    }
 
     if (isValidToken(zohoToken)) {
       localStorage.setItem('zohoAccessToken', zohoToken);
@@ -111,6 +119,18 @@ export default function Dashboards() {
           </button>
         </div>
       </div>
+
+      {oauthError && (
+        <div className="error" style={{ margin: '0 20px 20px' }}>
+          OAuth error: {oauthError}
+          <button
+            onClick={() => setOauthError(null)}
+            style={{ marginLeft: '12px', background: 'none', border: 'none', color: '#721c24', cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {activeTab === 'sales' && (
         <SalesDashboard zohoAccessToken={zohoAccessToken} zohoApiDomain={zohoApiDomain} user={user} />

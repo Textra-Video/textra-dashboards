@@ -24,9 +24,16 @@ export default async function handler(req, res) {
       }
     );
 
-    const { access_token, refresh_token, expires_in, api_domain } = tokenResponse.data;
+    // Zoho's token endpoint returns HTTP 200 even on failure, with an
+    // "error" field instead of access_token - axios won't throw for this,
+    // so we have to check explicitly.
+    if (tokenResponse.data.error || !tokenResponse.data.access_token) {
+      console.error('Zoho token exchange failed (200 OK with error body):', tokenResponse.data);
+      const errorMsg = tokenResponse.data.error || 'No access token returned';
+      return res.redirect(`/dashboards#zoho_error=${encodeURIComponent(errorMsg)}`);
+    }
 
-    console.log('Zoho token exchange response keys:', Object.keys(tokenResponse.data), 'api_domain:', api_domain);
+    const { access_token, refresh_token, expires_in, api_domain } = tokenResponse.data;
 
     // Zoho tokens are bound to the datacenter that issued them - api_domain
     // tells us exactly which endpoint to call, so we don't have to guess.
