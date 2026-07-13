@@ -81,7 +81,7 @@ export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, user })
             onClick={() => {
               // Textra's Zoho account is on the EU datacenter (crmplus.zoho.eu) -
               // auth codes issued here are only redeemable at accounts.zoho.eu.
-              const authUrl = `https://accounts.zoho.eu/oauth/v2/auth?scope=ZohoCRM.modules.READ&client_id=${process.env.NEXT_PUBLIC_ZOHO_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_ZOHO_REDIRECT_URI)}`;
+              const authUrl = `https://accounts.zoho.eu/oauth/v2/auth?scope=ZohoCRM.modules.READ,ZohoCRM.settings.READ&client_id=${process.env.NEXT_PUBLIC_ZOHO_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_ZOHO_REDIRECT_URI)}&prompt=consent`;
               window.location.href = authUrl;
             }}
           >
