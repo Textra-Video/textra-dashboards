@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/router';
-import { refreshZohoToken } from '../lib/tokenUtils';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -20,72 +19,45 @@ function fmtK(value) {
   return `£${(value / 1000).toFixed(0)}k`;
 }
 
-export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, zohoRefreshToken, onAuthExpired, user }) {
+const ZOHO_AUTH_URL = `https://accounts.zoho.eu/oauth/v2/auth?scope=ZohoCRM.modules.READ,ZohoCRM.settings.READ&client_id=${process.env.NEXT_PUBLIC_ZOHO_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_ZOHO_REDIRECT_URI)}&access_type=offline&prompt=consent`;
+
+export default function SalesDashboard({ user }) {
   const router = useRouter();
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [notConnected, setNotConnected] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [search, setSearch] = useState('');
 
-  const fetchDeals = async (tokenOverride, domainOverride, isRetry = false) => {
-    const token = tokenOverride || zohoAccessToken;
-    const domain = domainOverride || zohoApiDomain;
-
-    if (!token) {
-      setError('Not authenticated with Zoho');
-      return;
-    }
-
+  // Zoho auth is now a single shared, server-side connection (Redis) - no
+  // token to pass, the API figures out who's connected and auto-refreshes.
+  const fetchDeals = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await axios.post('/api/data/zoho-deals', {
-        accessToken: token,
-        apiDomain: domain,
-      });
-
+      const response = await axios.post('/api/data/zoho-deals');
       if (response.data.success) {
         setData(response.data.data);
+        setNotConnected(false);
         setLastUpdated(new Date().toLocaleTimeString('en-GB'));
       }
     } catch (err) {
-      // Access token expired (Zoho tokens last ~1hr) - silently renew with
-      // the refresh token and retry once, instead of forcing a reconnect.
-      if (err.response?.status === 401 && !isRetry) {
-        if (zohoRefreshToken) {
-          try {
-            const { accessToken: newToken, apiDomain: newDomain } = await refreshZohoToken(zohoRefreshToken);
-            await fetchDeals(newToken, newDomain, true);
-            return;
-          } catch (refreshErr) {
-            // Refresh token itself is dead (revoked, or predates this
-            // feature) - clear everything so the Connect button reappears
-            // instead of getting stuck retrying a token that can never work.
-            onAuthExpired?.();
-            setError('Your Zoho session expired. Click "Connect Zoho CRM" to reconnect.');
-            setLoading(false);
-            return;
-          }
-        }
-        onAuthExpired?.();
-        setError('Your Zoho session expired. Click "Connect Zoho CRM" to reconnect.');
-        setLoading(false);
-        return;
+      if (err.response?.data?.error === 'not_connected') {
+        setNotConnected(true);
+      } else {
+        const errorMsg = err.response?.data?.details || err.response?.data?.error || 'Failed to fetch deals';
+        setError(errorMsg);
       }
-      const errorMsg = err.response?.data?.details || err.response?.data?.error || 'Failed to fetch deals';
-      setError(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (zohoAccessToken) {
-      fetchDeals();
-    }
-  }, [zohoAccessToken]);
+    fetchDeals();
+  }, []);
 
   const matchingClients = useMemo(() => {
     if (!data || !search.trim()) return [];
@@ -98,24 +70,28 @@ export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, zohoRef
     router.push(`/dashboards/clients/${encodeURIComponent(name)}`);
   };
 
-  if (!zohoAccessToken) {
+  if (notConnected) {
     return (
       <div className="dashboard-content">
-        {error && <div className="error">{error}</div>}
         <div className="connect-prompt">
           <p>Please authenticate with Zoho CRM to view sales data</p>
           <button
             className="connect-button"
             onClick={() => {
-              // Textra's Zoho account is on the EU datacenter (crmplus.zoho.eu) -
-              // auth codes issued here are only redeemable at accounts.zoho.eu.
-              const authUrl = `https://accounts.zoho.eu/oauth/v2/auth?scope=ZohoCRM.modules.READ,ZohoCRM.settings.READ&client_id=${process.env.NEXT_PUBLIC_ZOHO_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_ZOHO_REDIRECT_URI)}&prompt=consent`;
-              window.location.href = authUrl;
+              window.location.href = ZOHO_AUTH_URL;
             }}
           >
             Connect Zoho CRM
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (loading && !data) {
+    return (
+      <div className="dashboard-content">
+        <div className="loading">Loading sales data...</div>
       </div>
     );
   }
@@ -128,7 +104,7 @@ export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, zohoRef
         <div>
           {lastUpdated && <p className="last-updated">Last updated: {lastUpdated}</p>}
         </div>
-        <button className="refresh-button" onClick={() => fetchDeals()} disabled={loading}>
+        <button className="refresh-button" onClick={fetchDeals} disabled={loading}>
           {loading ? 'Loading...' : 'Refresh Data'}
         </button>
       </div>

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getValidZohoAccessToken, forceRefreshZohoAccessToken } from '../../../lib/zohoAuth';
 
 function isSameMonth(dateStr, now) {
   if (!dateStr) return false;
@@ -6,46 +7,34 @@ function isSameMonth(dateStr, now) {
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
 }
 
+async function fetchDealsFromZoho(accessToken, apiDomain) {
+  return axios.get(`${apiDomain}/crm/v2/Deals`, {
+    headers: {
+      Authorization: `Zoho-oauthtoken ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    params: {
+      fields: 'id,Deal_Name,Amount,Stage,Closing_Date,Owner,Probability,Account_Name',
+      per_page: 200,
+    },
+  });
+}
+
 export default async function handler(req, res) {
-  const { accessToken, apiDomain } = req.body;
-
-  if (!accessToken) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
-
   try {
-    // Zoho tokens are only valid against the datacenter that issued them.
-    // apiDomain comes from the OAuth token exchange response, so use it
-    // when we have it instead of guessing which datacenter to call.
-    let dealsResponse;
-    const endpoints = apiDomain
-      ? [`${apiDomain}/crm/v2/Deals`]
-      : [
-          'https://www.zohoapis.com/crm/v2/Deals',
-          'https://www.zohoapis.eu/crm/v2/Deals',
-          'https://www.zohoapis.in/crm/v2/Deals',
-        ];
+    let { accessToken, apiDomain } = await getValidZohoAccessToken();
 
-    for (const endpoint of endpoints) {
-      try {
-        dealsResponse = await axios.get(endpoint, {
-          headers: {
-            Authorization: `Zoho-oauthtoken ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          params: {
-            fields: 'id,Deal_Name,Amount,Stage,Closing_Date,Owner,Probability,Account_Name',
-            per_page: 200,
-          },
-        });
-        break; // Success, exit loop
-      } catch (err) {
-        if (endpoint === endpoints[endpoints.length - 1]) {
-          // Last endpoint, re-throw error
-          throw err;
-        }
-        // Try next endpoint
-        continue;
+    let dealsResponse;
+    try {
+      dealsResponse = await fetchDealsFromZoho(accessToken, apiDomain);
+    } catch (err) {
+      // Cached token looked fresh but Zoho rejected it anyway (clock skew,
+      // manual revoke) - force one refresh and retry before giving up.
+      if (err.response?.status === 401) {
+        ({ accessToken, apiDomain } = await forceRefreshZohoAccessToken());
+        dealsResponse = await fetchDealsFromZoho(accessToken, apiDomain);
+      } else {
+        throw err;
       }
     }
 
@@ -144,16 +133,14 @@ export default async function handler(req, res) {
       },
     });
   } catch (error) {
+    if (error.message === 'ZOHO_NOT_CONNECTED') {
+      return res.status(401).json({ error: 'not_connected', details: 'Zoho CRM has not been connected yet.' });
+    }
     console.error('Zoho data fetch error:', {
       status: error.response?.status,
       data: error.response?.data,
       message: error.message,
-      apiDomainReceived: apiDomain,
-      accessTokenPrefix: accessToken?.slice(0, 12),
-      accessTokenLength: accessToken?.length,
     });
-    // Forward Zoho's 401 as our own 401 so the frontend can tell "token
-    // expired, try a refresh" apart from other failures worth surfacing.
     const status = error.response?.status === 401 ? 401 : 500;
     res.status(status).json({
       error: 'Failed to fetch Zoho data',

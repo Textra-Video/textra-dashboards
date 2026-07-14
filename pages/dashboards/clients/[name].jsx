@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import axios from 'axios';
-import { isValidToken, refreshZohoToken } from '../../../lib/tokenUtils';
 
 function fmtK(value) {
   return `£${(value / 1000).toFixed(0)}k`;
@@ -11,71 +10,41 @@ function fmtK(value) {
 export default function ClientDetail() {
   const router = useRouter();
   const { name } = router.query;
-  const [zohoAccessToken, setZohoAccessToken] = useState(null);
-  const [zohoApiDomain, setZohoApiDomain] = useState(null);
-  const [zohoRefreshToken, setZohoRefreshToken] = useState(null);
   const [deals, setDeals] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [notConnected, setNotConnected] = useState(false);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('textraUser');
     if (!savedUser) {
       router.push('/');
-      return;
     }
-
-    const zohoToken = localStorage.getItem('zohoAccessToken');
-    const zohoDomain = localStorage.getItem('zohoApiDomain');
-    const zohoRefresh = localStorage.getItem('zohoRefreshToken');
-    if (isValidToken(zohoToken)) setZohoAccessToken(zohoToken);
-    if (isValidToken(zohoDomain)) setZohoApiDomain(zohoDomain);
-    if (isValidToken(zohoRefresh)) setZohoRefreshToken(zohoRefresh);
   }, [router]);
 
-  const fetchClientDeals = async (tokenOverride, domainOverride, isRetry = false) => {
-    const token = tokenOverride || zohoAccessToken;
-    const domain = domainOverride || zohoApiDomain;
-    if (!token || !name) return;
+  useEffect(() => {
+    if (!name) return;
 
     setLoading(true);
     setError(null);
 
-    try {
-      const response = await axios.post('/api/data/zoho-deals', { accessToken: token, apiDomain: domain });
-      if (response.data.success) {
-        const clientDeals = response.data.data.deals.filter((d) => d.account === name);
-        setDeals(clientDeals);
-      }
-    } catch (err) {
-      if (err.response?.status === 401 && !isRetry) {
-        if (zohoRefreshToken) {
-          try {
-            const { accessToken: newToken, apiDomain: newDomain } = await refreshZohoToken(zohoRefreshToken);
-            await fetchClientDeals(newToken, newDomain, true);
-            return;
-          } catch (refreshErr) {
-            // fall through to clear + prompt reconnect below
-          }
+    axios
+      .post('/api/data/zoho-deals')
+      .then((response) => {
+        if (response.data.success) {
+          const clientDeals = response.data.data.deals.filter((d) => d.account === name);
+          setDeals(clientDeals);
         }
-        localStorage.removeItem('zohoAccessToken');
-        localStorage.removeItem('zohoApiDomain');
-        localStorage.removeItem('zohoRefreshToken');
-        setError('Your Zoho session expired. Please reconnect from the dashboard.');
-        setLoading(false);
-        return;
-      }
-      setError(err.response?.data?.details || err.response?.data?.error || 'Failed to fetch client data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (zohoAccessToken && name) {
-      fetchClientDeals();
-    }
-  }, [zohoAccessToken, zohoApiDomain, name]);
+      })
+      .catch((err) => {
+        if (err.response?.data?.error === 'not_connected') {
+          setNotConnected(true);
+        } else {
+          setError(err.response?.data?.details || err.response?.data?.error || 'Failed to fetch client data');
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [name]);
 
   const totalValue = deals ? deals.reduce((sum, d) => sum + d.value, 0) : 0;
   const openValue = deals ? deals.filter((d) => d.isOpen).reduce((sum, d) => sum + d.value, 0) : 0;
@@ -96,6 +65,15 @@ export default function ClientDetail() {
 
       <div className="dashboard-container">
         <div className="section-title">{name || 'Client'}</div>
+
+        {notConnected && (
+          <div className="connect-prompt">
+            <p>Zoho CRM isn&apos;t connected yet.</p>
+            <button className="connect-button" onClick={() => router.push('/dashboards')}>
+              Go to Dashboard to Connect
+            </button>
+          </div>
+        )}
 
         {error && <div className="error">Error: {error}</div>}
         {loading && <div className="loading">Loading client data...</div>}

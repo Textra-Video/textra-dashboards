@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
+import axios from 'axios';
 import SalesDashboard from '../components/SalesDashboard';
 import FinanceDashboard from '../components/FinanceDashboard';
 import { isValidToken } from '../lib/tokenUtils';
@@ -9,9 +10,6 @@ export default function Dashboards() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('sales');
-  const [zohoAccessToken, setZohoAccessToken] = useState(null);
-  const [zohoApiDomain, setZohoApiDomain] = useState(null);
-  const [zohoRefreshToken, setZohoRefreshToken] = useState(null);
   const [xeroAccessToken, setXeroAccessToken] = useState(null);
   const [xeroTenantId, setXeroTenantId] = useState(null);
   const [loginLog, setLoginLog] = useState([]);
@@ -27,42 +25,29 @@ export default function Dashboards() {
     }
     setUser(savedUser);
 
-    // Load tokens from localStorage
-    const zohoToken = localStorage.getItem('zohoAccessToken');
-    const zohoDomain = localStorage.getItem('zohoApiDomain');
-    const zohoRefresh = localStorage.getItem('zohoRefreshToken');
+    // Xero remains client-managed (out of scope for the shared-auth work).
     const xeroToken = localStorage.getItem('xeroAccessToken');
     const tenantId = localStorage.getItem('xeroTenantId');
-
-    if (isValidToken(zohoToken)) {
-      setZohoAccessToken(zohoToken);
-    } else if (zohoToken) {
-      localStorage.removeItem('zohoAccessToken');
-    }
-    if (isValidToken(zohoDomain)) {
-      setZohoApiDomain(zohoDomain);
-    } else if (zohoDomain) {
-      localStorage.removeItem('zohoApiDomain');
-    }
-    if (isValidToken(zohoRefresh)) {
-      setZohoRefreshToken(zohoRefresh);
-    } else if (zohoRefresh) {
-      localStorage.removeItem('zohoRefreshToken');
-    }
     if (isValidToken(xeroToken)) setXeroAccessToken(xeroToken);
     if (isValidToken(tenantId)) setXeroTenantId(tenantId);
 
-    // Load login log
-    const log = JSON.parse(localStorage.getItem('textraLoginLog')) || [];
-    setLoginLog(log);
+    // Login log is now shared (Redis-backed) - visible to every user/device.
+    axios
+      .get('/api/data/login-log')
+      .then((res) => {
+        if (res.data.success) setLoginLog(res.data.entries);
+      })
+      .catch(() => {});
   }, [router]);
 
   useEffect(() => {
-    // Handle OAuth callback from URL fragment
+    // Handle OAuth callback from URL fragment. Zoho tokens are stored
+    // server-side now (shared connection) - only a success/error flag comes
+    // back in the fragment, never the token itself.
     const fragment = window.location.hash.substring(1);
     const params = new URLSearchParams(fragment);
 
-    const zohoToken = params.get('zoho_token');
+    const zohoConnected = params.get('zoho_connected');
     const xeroToken = params.get('xero_token');
     const zohoError = params.get('zoho_error');
     const xeroError = params.get('xero_error');
@@ -72,19 +57,7 @@ export default function Dashboards() {
       window.history.replaceState({}, document.title, '/dashboards');
     }
 
-    if (isValidToken(zohoToken)) {
-      localStorage.setItem('zohoAccessToken', zohoToken);
-      setZohoAccessToken(zohoToken);
-      const apiDomain = params.get('zoho_api_domain');
-      if (isValidToken(apiDomain)) {
-        localStorage.setItem('zohoApiDomain', apiDomain);
-        setZohoApiDomain(apiDomain);
-      }
-      const refreshToken = params.get('zoho_refresh');
-      if (isValidToken(refreshToken)) {
-        localStorage.setItem('zohoRefreshToken', refreshToken);
-        setZohoRefreshToken(refreshToken);
-      }
+    if (zohoConnected) {
       window.history.replaceState({}, document.title, '/dashboards');
     }
 
@@ -103,19 +76,6 @@ export default function Dashboards() {
   const handleLogout = () => {
     localStorage.removeItem('textraUser');
     router.push('/');
-  };
-
-  // Called when a Zoho token is confirmed dead (401 with no working refresh
-  // token). Clears it so the UI falls back to the "Connect Zoho CRM" button
-  // instead of getting stuck showing "Refresh Data" for a token that can
-  // never work again.
-  const clearZohoAuth = () => {
-    localStorage.removeItem('zohoAccessToken');
-    localStorage.removeItem('zohoApiDomain');
-    localStorage.removeItem('zohoRefreshToken');
-    setZohoAccessToken(null);
-    setZohoApiDomain(null);
-    setZohoRefreshToken(null);
   };
 
   return (
@@ -162,15 +122,7 @@ export default function Dashboards() {
           </div>
         )}
 
-        {activeTab === 'sales' && (
-          <SalesDashboard
-            zohoAccessToken={zohoAccessToken}
-            zohoApiDomain={zohoApiDomain}
-            zohoRefreshToken={zohoRefreshToken}
-            onAuthExpired={clearZohoAuth}
-            user={user}
-          />
-        )}
+        {activeTab === 'sales' && <SalesDashboard user={user} />}
         {activeTab === 'finance' && (
           <FinanceDashboard
             xeroAccessToken={xeroAccessToken}
@@ -182,22 +134,19 @@ export default function Dashboards() {
         <div className="chart-container login-log-card">
           <button className="login-log-toggle" onClick={() => setShowLoginLog((v) => !v)}>
             <span className="chart-title" style={{ marginBottom: 0 }}>
-              Login Activity ({loginLog.length}) — this device
+              Login Activity ({loginLog.length}) — shared across all users
             </span>
             <span className="login-log-caret">{showLoginLog ? '▲' : '▼'}</span>
           </button>
           {showLoginLog && (
             <div className="login-log-list">
               {loginLog.length === 0 && <p className="last-updated">No login activity recorded yet.</p>}
-              {loginLog
-                .slice()
-                .reverse()
-                .map((entry, i) => (
-                  <div key={i} className="login-log-row">
-                    <span>{entry.user}</span>
-                    <span className="last-updated">{new Date(entry.timestamp).toLocaleString('en-GB')}</span>
-                  </div>
-                ))}
+              {loginLog.map((entry, i) => (
+                <div key={i} className="login-log-row">
+                  <span>{entry.user}</span>
+                  <span className="last-updated">{new Date(entry.timestamp).toLocaleString('en-GB')}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>

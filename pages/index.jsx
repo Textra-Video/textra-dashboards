@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
+import axios from 'axios';
 import { useRouter } from 'next/router';
 
 export default function Home() {
@@ -15,10 +16,8 @@ export default function Home() {
     if (username === 'admin' && password === 'admin') {
       localStorage.setItem('textraUser', username);
 
-      // Browser-local login audit log, capped to the most recent 50 entries.
-      const log = JSON.parse(localStorage.getItem('textraLoginLog')) || [];
-      log.push({ user: username, timestamp: new Date().toISOString() });
-      localStorage.setItem('textraLoginLog', JSON.stringify(log.slice(-50)));
+      // Shared login audit log (visible to every user/device), fire-and-forget.
+      axios.post('/api/auth/log-login', { user: username }).catch(() => {});
 
       router.push('/dashboards');
     } else {

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { saveZohoTokens } from '../../../../lib/zohoAuth';
 
 export default async function handler(req, res) {
   const { code } = req.query;
@@ -35,11 +36,21 @@ export default async function handler(req, res) {
 
     const { access_token, refresh_token, expires_in, api_domain } = tokenResponse.data;
 
-    // Zoho tokens are bound to the datacenter that issued them - api_domain
-    // tells us exactly which endpoint to call, so we don't have to guess.
-    res.redirect(
-      `/dashboards#zoho_token=${encodeURIComponent(access_token)}&zoho_refresh=${encodeURIComponent(refresh_token || '')}&zoho_expires=${expires_in}&zoho_api_domain=${encodeURIComponent(api_domain || '')}`
-    );
+    if (!refresh_token) {
+      console.error('Zoho token exchange succeeded but returned no refresh_token - shared auto-refresh will not work.');
+    }
+
+    // Store the token server-side (shared Redis) instead of handing it to
+    // the browser - any user who logs into the dashboard now shares this
+    // one Zoho connection instead of each device needing its own.
+    await saveZohoTokens({
+      accessToken: access_token,
+      refreshToken: refresh_token,
+      apiDomain: api_domain,
+      expiresIn: expires_in,
+    });
+
+    res.redirect('/dashboards#zoho_connected=1');
   } catch (error) {
     console.error('Zoho OAuth error:', error.response?.data || error.message);
     console.error('Full error:', error.response);
