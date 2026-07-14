@@ -11,6 +11,7 @@ export default function Dashboards() {
   const [activeTab, setActiveTab] = useState('sales');
   const [zohoAccessToken, setZohoAccessToken] = useState(null);
   const [zohoApiDomain, setZohoApiDomain] = useState(null);
+  const [zohoRefreshToken, setZohoRefreshToken] = useState(null);
   const [xeroAccessToken, setXeroAccessToken] = useState(null);
   const [xeroTenantId, setXeroTenantId] = useState(null);
   const [loginLog, setLoginLog] = useState([]);
@@ -29,6 +30,7 @@ export default function Dashboards() {
     // Load tokens from localStorage
     const zohoToken = localStorage.getItem('zohoAccessToken');
     const zohoDomain = localStorage.getItem('zohoApiDomain');
+    const zohoRefresh = localStorage.getItem('zohoRefreshToken');
     const xeroToken = localStorage.getItem('xeroAccessToken');
     const tenantId = localStorage.getItem('xeroTenantId');
 
@@ -41,6 +43,11 @@ export default function Dashboards() {
       setZohoApiDomain(zohoDomain);
     } else if (zohoDomain) {
       localStorage.removeItem('zohoApiDomain');
+    }
+    if (isValidToken(zohoRefresh)) {
+      setZohoRefreshToken(zohoRefresh);
+    } else if (zohoRefresh) {
+      localStorage.removeItem('zohoRefreshToken');
     }
     if (isValidToken(xeroToken)) setXeroAccessToken(xeroToken);
     if (isValidToken(tenantId)) setXeroTenantId(tenantId);
@@ -72,6 +79,11 @@ export default function Dashboards() {
       if (isValidToken(apiDomain)) {
         localStorage.setItem('zohoApiDomain', apiDomain);
         setZohoApiDomain(apiDomain);
+      }
+      const refreshToken = params.get('zoho_refresh');
+      if (isValidToken(refreshToken)) {
+        localStorage.setItem('zohoRefreshToken', refreshToken);
+        setZohoRefreshToken(refreshToken);
       }
       window.history.replaceState({}, document.title, '/dashboards');
     }
@@ -138,7 +150,12 @@ export default function Dashboards() {
         )}
 
         {activeTab === 'sales' && (
-          <SalesDashboard zohoAccessToken={zohoAccessToken} zohoApiDomain={zohoApiDomain} user={user} />
+          <SalesDashboard
+            zohoAccessToken={zohoAccessToken}
+            zohoApiDomain={zohoApiDomain}
+            zohoRefreshToken={zohoRefreshToken}
+            user={user}
+          />
         )}
         {activeTab === 'finance' && (
           <FinanceDashboard

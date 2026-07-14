@@ -152,7 +152,10 @@ export default async function handler(req, res) {
       accessTokenPrefix: accessToken?.slice(0, 12),
       accessTokenLength: accessToken?.length,
     });
-    res.status(500).json({
+    // Forward Zoho's 401 as our own 401 so the frontend can tell "token
+    // expired, try a refresh" apart from other failures worth surfacing.
+    const status = error.response?.status === 401 ? 401 : 500;
+    res.status(status).json({
       error: 'Failed to fetch Zoho data',
       details: error.response?.data?.message || error.message,
     });

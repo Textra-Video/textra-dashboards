@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/router';
+import { refreshZohoToken } from '../lib/tokenUtils';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -19,7 +20,7 @@ function fmtK(value) {
   return `£${(value / 1000).toFixed(0)}k`;
 }
 
-export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, user }) {
+export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, zohoRefreshToken, user }) {
   const router = useRouter();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -27,8 +28,11 @@ export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, user })
   const [lastUpdated, setLastUpdated] = useState(null);
   const [search, setSearch] = useState('');
 
-  const fetchDeals = async () => {
-    if (!zohoAccessToken) {
+  const fetchDeals = async (tokenOverride, domainOverride, isRetry = false) => {
+    const token = tokenOverride || zohoAccessToken;
+    const domain = domainOverride || zohoApiDomain;
+
+    if (!token) {
       setError('Not authenticated with Zoho');
       return;
     }
@@ -38,8 +42,8 @@ export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, user })
 
     try {
       const response = await axios.post('/api/data/zoho-deals', {
-        accessToken: zohoAccessToken,
-        apiDomain: zohoApiDomain,
+        accessToken: token,
+        apiDomain: domain,
       });
 
       if (response.data.success) {
@@ -47,6 +51,19 @@ export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, user })
         setLastUpdated(new Date().toLocaleTimeString('en-GB'));
       }
     } catch (err) {
+      // Access token expired (Zoho tokens last ~1hr) - silently renew with
+      // the refresh token and retry once, instead of forcing a reconnect.
+      if (err.response?.status === 401 && zohoRefreshToken && !isRetry) {
+        try {
+          const { accessToken: newToken, apiDomain: newDomain } = await refreshZohoToken(zohoRefreshToken);
+          await fetchDeals(newToken, newDomain, true);
+          return;
+        } catch (refreshErr) {
+          setError('Your Zoho session expired and could not be renewed automatically. Please reconnect.');
+          setLoading(false);
+          return;
+        }
+      }
       const errorMsg = err.response?.data?.details || err.response?.data?.error || 'Failed to fetch deals';
       setError(errorMsg);
     } finally {
@@ -100,7 +117,7 @@ export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, user })
         <div>
           {lastUpdated && <p className="last-updated">Last updated: {lastUpdated}</p>}
         </div>
-        <button className="refresh-button" onClick={fetchDeals} disabled={loading}>
+        <button className="refresh-button" onClick={() => fetchDeals()} disabled={loading}>
           {loading ? 'Loading...' : 'Refresh Data'}
         </button>
       </div>

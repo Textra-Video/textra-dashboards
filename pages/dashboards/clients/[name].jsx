@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import axios from 'axios';
-import { isValidToken } from '../../../lib/tokenUtils';
+import { isValidToken, refreshZohoToken } from '../../../lib/tokenUtils';
 
 function fmtK(value) {
   return `£${(value / 1000).toFixed(0)}k`;
@@ -13,6 +13,7 @@ export default function ClientDetail() {
   const { name } = router.query;
   const [zohoAccessToken, setZohoAccessToken] = useState(null);
   const [zohoApiDomain, setZohoApiDomain] = useState(null);
+  const [zohoRefreshToken, setZohoRefreshToken] = useState(null);
   const [deals, setDeals] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -26,28 +27,48 @@ export default function ClientDetail() {
 
     const zohoToken = localStorage.getItem('zohoAccessToken');
     const zohoDomain = localStorage.getItem('zohoApiDomain');
+    const zohoRefresh = localStorage.getItem('zohoRefreshToken');
     if (isValidToken(zohoToken)) setZohoAccessToken(zohoToken);
     if (isValidToken(zohoDomain)) setZohoApiDomain(zohoDomain);
+    if (isValidToken(zohoRefresh)) setZohoRefreshToken(zohoRefresh);
   }, [router]);
 
-  useEffect(() => {
-    if (!zohoAccessToken || !name) return;
+  const fetchClientDeals = async (tokenOverride, domainOverride, isRetry = false) => {
+    const token = tokenOverride || zohoAccessToken;
+    const domain = domainOverride || zohoApiDomain;
+    if (!token || !name) return;
 
     setLoading(true);
     setError(null);
 
-    axios
-      .post('/api/data/zoho-deals', { accessToken: zohoAccessToken, apiDomain: zohoApiDomain })
-      .then((response) => {
-        if (response.data.success) {
-          const clientDeals = response.data.data.deals.filter((d) => d.account === name);
-          setDeals(clientDeals);
+    try {
+      const response = await axios.post('/api/data/zoho-deals', { accessToken: token, apiDomain: domain });
+      if (response.data.success) {
+        const clientDeals = response.data.data.deals.filter((d) => d.account === name);
+        setDeals(clientDeals);
+      }
+    } catch (err) {
+      if (err.response?.status === 401 && zohoRefreshToken && !isRetry) {
+        try {
+          const { accessToken: newToken, apiDomain: newDomain } = await refreshZohoToken(zohoRefreshToken);
+          await fetchClientDeals(newToken, newDomain, true);
+          return;
+        } catch (refreshErr) {
+          setError('Your Zoho session expired and could not be renewed automatically. Please reconnect from the dashboard.');
+          setLoading(false);
+          return;
         }
-      })
-      .catch((err) => {
-        setError(err.response?.data?.details || err.response?.data?.error || 'Failed to fetch client data');
-      })
-      .finally(() => setLoading(false));
+      }
+      setError(err.response?.data?.details || err.response?.data?.error || 'Failed to fetch client data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (zohoAccessToken && name) {
+      fetchClientDeals();
+    }
   }, [zohoAccessToken, zohoApiDomain, name]);
 
   const totalValue = deals ? deals.reduce((sum, d) => sum + d.value, 0) : 0;
