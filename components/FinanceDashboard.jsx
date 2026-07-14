@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const XERO_AUTH_URL = `https://login.xero.com/identity/connect/authorize?response_type=code&client_id=${process.env.NEXT_PUBLIC_XERO_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_XERO_REDIRECT_URI)}&scope=offline_access%20accounting.transactions%20accounting.reports.read%20accounting.contacts.read`;
+const XERO_AUTH_URL = `https://login.xero.com/identity/connect/authorize?response_type=code&client_id=${process.env.NEXT_PUBLIC_XERO_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_XERO_REDIRECT_URI)}&scope=offline_access%20accounting.contacts.read%20accounting.banktransactions.read%20accounting.reports.aged.read%20accounting.reports.balancesheet.read%20accounting.invoices.read`;
 
 export default function FinanceDashboard({ user }) {
   const [data, setData] = useState(null);
