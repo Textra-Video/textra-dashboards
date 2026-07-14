@@ -4,14 +4,11 @@ import { useRouter } from 'next/router';
 import axios from 'axios';
 import SalesDashboard from '../components/SalesDashboard';
 import FinanceDashboard from '../components/FinanceDashboard';
-import { isValidToken } from '../lib/tokenUtils';
 
 export default function Dashboards() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('sales');
-  const [xeroAccessToken, setXeroAccessToken] = useState(null);
-  const [xeroTenantId, setXeroTenantId] = useState(null);
   const [loginLog, setLoginLog] = useState([]);
   const [oauthError, setOauthError] = useState(null);
   const [showLoginLog, setShowLoginLog] = useState(false);
@@ -25,13 +22,7 @@ export default function Dashboards() {
     }
     setUser(savedUser);
 
-    // Xero remains client-managed (out of scope for the shared-auth work).
-    const xeroToken = localStorage.getItem('xeroAccessToken');
-    const tenantId = localStorage.getItem('xeroTenantId');
-    if (isValidToken(xeroToken)) setXeroAccessToken(xeroToken);
-    if (isValidToken(tenantId)) setXeroTenantId(tenantId);
-
-    // Login log is now shared (Redis-backed) - visible to every user/device.
+    // Login log is shared (Redis-backed) - visible to every user/device.
     axios
       .get('/api/data/login-log')
       .then((res) => {
@@ -41,34 +32,20 @@ export default function Dashboards() {
   }, [router]);
 
   useEffect(() => {
-    // Handle OAuth callback from URL fragment. Zoho tokens are stored
-    // server-side now (shared connection) - only a success/error flag comes
-    // back in the fragment, never the token itself.
+    // Handle OAuth callback from URL fragment. Both Zoho and Xero tokens
+    // are stored server-side now (shared connections) - only a
+    // success/error flag comes back in the fragment, never the token itself.
     const fragment = window.location.hash.substring(1);
     const params = new URLSearchParams(fragment);
 
-    const zohoConnected = params.get('zoho_connected');
-    const xeroToken = params.get('xero_token');
     const zohoError = params.get('zoho_error');
     const xeroError = params.get('xero_error');
 
     if (zohoError || xeroError) {
       setOauthError(`${zohoError ? `Zoho: ${zohoError}` : ''}${zohoError && xeroError ? ' | ' : ''}${xeroError ? `Xero: ${xeroError}` : ''}`);
-      window.history.replaceState({}, document.title, '/dashboards');
     }
 
-    if (zohoConnected) {
-      window.history.replaceState({}, document.title, '/dashboards');
-    }
-
-    if (xeroToken) {
-      localStorage.setItem('xeroAccessToken', xeroToken);
-      const tenantId = params.get('xero_tenant');
-      if (tenantId) {
-        localStorage.setItem('xeroTenantId', tenantId);
-        setXeroTenantId(tenantId);
-      }
-      setXeroAccessToken(xeroToken);
+    if (zohoError || xeroError || params.get('zoho_connected') || params.get('xero_connected')) {
       window.history.replaceState({}, document.title, '/dashboards');
     }
   }, []);
@@ -123,13 +100,7 @@ export default function Dashboards() {
         )}
 
         {activeTab === 'sales' && <SalesDashboard user={user} />}
-        {activeTab === 'finance' && (
-          <FinanceDashboard
-            xeroAccessToken={xeroAccessToken}
-            xeroTenantId={xeroTenantId}
-            user={user}
-          />
-        )}
+        {activeTab === 'finance' && <FinanceDashboard user={user} />}
 
         <div className="chart-container login-log-card">
           <button className="login-log-toggle" onClick={() => setShowLoginLog((v) => !v)}>

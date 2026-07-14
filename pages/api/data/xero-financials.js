@@ -1,79 +1,65 @@
 import axios from 'axios';
+import { getValidXeroAccessToken, forceRefreshXeroAccessToken } from '../../../lib/xeroAuth';
+
+// TEMPORARY: returns real connected bank accounts only. The previous
+// version of this endpoint fabricated cashBalance/runway/monthlyBurn/
+// grossMargin as hardcoded constants - removed rather than kept lying.
+// Real metrics get built once we've queried the Xero API to see what's
+// actually available (same approach used for the Sales/Zoho dashboard).
+async function fetchAccounts(accessToken, tenantId) {
+  return axios.get('https://api.xero.com/api.xro/2.0/Accounts', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Xero-tenant-id': tenantId,
+      Accept: 'application/json',
+    },
+    params: { where: 'Type=="BANK"' },
+  });
+}
 
 export default async function handler(req, res) {
-  const { accessToken, tenantId } = req.body;
-
-  if (!accessToken || !tenantId) {
-    return res.status(401).json({ error: 'Access token and tenant ID required' });
-  }
-
   try {
-    // Fetch bank transactions for cash balance
-    const bankResponse = await axios.get(
-      'https://api.xero.com/api.xro/2.0/Accounts',
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Xero-tenant-id': tenantId,
-        },
-        params: {
-          where: 'Type=="BANK"',
-        },
+    let { accessToken, tenantId } = await getValidXeroAccessToken();
+
+    let response;
+    try {
+      response = await fetchAccounts(accessToken, tenantId);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        ({ accessToken, tenantId } = await forceRefreshXeroAccessToken());
+        response = await fetchAccounts(accessToken, tenantId);
+      } else {
+        throw err;
       }
-    );
+    }
 
-    const bankAccounts = bankResponse.data.Accounts || [];
-    const cashBalance = bankAccounts.reduce((sum, acc) => sum + (acc.UpdatedUtcDate ? 0 : 0), 0);
-
-    // Fetch invoices for MRR/ARR calculation
-    const invoicesResponse = await axios.get(
-      'https://api.xero.com/api.xro/2.0/Invoices',
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Xero-tenant-id': tenantId,
-        },
-        params: {
-          where: 'Status=="AUTHORISED"',
-          order: 'UpdatedUtcDate DESC',
-        },
-      }
-    );
-
-    const invoices = invoicesResponse.data.Invoices || [];
-    const totalInvoiced = invoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
-    const totalCollected = invoices
-      .filter((inv) => inv.Status === 'PAID')
-      .reduce((sum, inv) => sum + (inv.Total || 0), 0);
-
-    // Fetch P&L data (simplified)
-    const reportsResponse = await axios.get(
-      'https://api.xero.com/api.xro/2.0/Reports/ProfitAndLoss',
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Xero-tenant-id': tenantId,
-        },
-      }
-    );
-
-    const plData = reportsResponse.data;
+    const bankAccounts = (response.data.Accounts || []).map((acc) => ({
+      name: acc.Name,
+      code: acc.Code,
+      currency: acc.CurrencyCode,
+      status: acc.Status,
+    }));
 
     res.status(200).json({
       success: true,
       data: {
-        cashBalance: totalInvoiced, // Placeholder calculation
-        runway: 2.8, // Calculate from burn rate
-        monthlyBurn: 115000,
-        mrrInvoiced: totalInvoiced / 12,
-        mrrCollected: totalCollected / 12,
-        grossMargin: 0.78,
-        plData,
+        bankAccounts,
         lastUpdated: new Date().toISOString(),
       },
     });
   } catch (error) {
-    console.error('Xero data fetch error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to fetch Xero data' });
+    if (error.message === 'XERO_NOT_CONNECTED') {
+      return res.status(401).json({ error: 'not_connected' });
+    }
+    console.error('Xero data fetch error:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+    });
+    const status = error.response?.status === 401 ? 401 : 500;
+    res.status(status).json({
+      error: 'Failed to fetch Xero data',
+      details: error.response?.data?.Detail || error.message,
+    });
   }
 }
