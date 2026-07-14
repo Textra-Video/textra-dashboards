@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getValidZohoAccessToken, forceRefreshZohoAccessToken } from '../../../lib/zohoAuth';
+import { getValidZohoAccessToken, forceRefreshZohoAccessToken, getCrmRecordUrl } from '../../../lib/zohoAuth';
 
 const STALE_ACTIVITY_DAYS = 30;
 const OVERDUE_CLOSE_DAYS = 60;
@@ -74,6 +74,7 @@ export default async function handler(req, res) {
       return {
         id: deal.id,
         name: deal.Deal_Name,
+        crmUrl: getCrmRecordUrl(apiDomain, 'Deals', deal.id),
         value: deal.Amount || 0,
         expectedRevenue: deal.Expected_Revenue || 0,
         stage,

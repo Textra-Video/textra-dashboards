@@ -594,6 +594,17 @@ export default function SalesDashboard({ user }) {
                         <span>Owner: {d.owner}</span>
                         <span>Source: {d.leadSource}</span>
                         {d.closeDate && <span>Close: {new Date(d.closeDate).toLocaleDateString('en-GB')}</span>}
+                        {d.crmUrl && (
+                          <a
+                            href={d.crmUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="crm-link"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            View in Zoho CRM ↗
+                          </a>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -685,6 +696,17 @@ export default function SalesDashboard({ user }) {
                     {activeMetric === 'pipeline' && <span>Weighted: {fmtK(d.expectedRevenue)}</span>}
                     {activeMetric === 'salesCycle' && <span>{d.salesCycleDuration} days</span>}
                     {d.closeDate && <span>Close: {new Date(d.closeDate).toLocaleDateString('en-GB')}</span>}
+                    {d.crmUrl && (
+                      <a
+                        href={d.crmUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="crm-link"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        View in Zoho CRM ↗
+                      </a>
+                    )}
                   </div>
                 </div>
               ))}

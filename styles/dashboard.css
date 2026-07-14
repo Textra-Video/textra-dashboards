@@ -454,6 +454,16 @@ body {
   color: var(--muted);
 }
 
+.crm-link {
+  color: var(--blue);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.crm-link:hover {
+  text-decoration: underline;
+}
+
 .deal-list-nextstep {
   margin-top: 8px;
   padding-top: 8px;

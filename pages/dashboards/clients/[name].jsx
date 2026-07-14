@@ -113,6 +113,11 @@ export default function ClientDetail() {
                       <span>Probability: {d.probability}%</span>
                       {d.contact && <span>Contact: {d.contact}</span>}
                       {d.closeDate && <span>Close: {new Date(d.closeDate).toLocaleDateString('en-GB')}</span>}
+                      {d.crmUrl && (
+                        <a href={d.crmUrl} target="_blank" rel="noopener noreferrer" className="crm-link">
+                          View in Zoho CRM ↗
+                        </a>
+                      )}
                     </div>
                     {d.nextStep && (
                       <div className="deal-list-nextstep">Next step: {d.nextStep}</div>
