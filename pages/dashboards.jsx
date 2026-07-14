@@ -105,6 +105,19 @@ export default function Dashboards() {
     router.push('/');
   };
 
+  // Called when a Zoho token is confirmed dead (401 with no working refresh
+  // token). Clears it so the UI falls back to the "Connect Zoho CRM" button
+  // instead of getting stuck showing "Refresh Data" for a token that can
+  // never work again.
+  const clearZohoAuth = () => {
+    localStorage.removeItem('zohoAccessToken');
+    localStorage.removeItem('zohoApiDomain');
+    localStorage.removeItem('zohoRefreshToken');
+    setZohoAccessToken(null);
+    setZohoApiDomain(null);
+    setZohoRefreshToken(null);
+  };
+
   return (
     <div className="dashboard">
       <div className="dashboard-header">
@@ -154,6 +167,7 @@ export default function Dashboards() {
             zohoAccessToken={zohoAccessToken}
             zohoApiDomain={zohoApiDomain}
             zohoRefreshToken={zohoRefreshToken}
+            onAuthExpired={clearZohoAuth}
             user={user}
           />
         )}

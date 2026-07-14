@@ -48,16 +48,22 @@ export default function ClientDetail() {
         setDeals(clientDeals);
       }
     } catch (err) {
-      if (err.response?.status === 401 && zohoRefreshToken && !isRetry) {
-        try {
-          const { accessToken: newToken, apiDomain: newDomain } = await refreshZohoToken(zohoRefreshToken);
-          await fetchClientDeals(newToken, newDomain, true);
-          return;
-        } catch (refreshErr) {
-          setError('Your Zoho session expired and could not be renewed automatically. Please reconnect from the dashboard.');
-          setLoading(false);
-          return;
+      if (err.response?.status === 401 && !isRetry) {
+        if (zohoRefreshToken) {
+          try {
+            const { accessToken: newToken, apiDomain: newDomain } = await refreshZohoToken(zohoRefreshToken);
+            await fetchClientDeals(newToken, newDomain, true);
+            return;
+          } catch (refreshErr) {
+            // fall through to clear + prompt reconnect below
+          }
         }
+        localStorage.removeItem('zohoAccessToken');
+        localStorage.removeItem('zohoApiDomain');
+        localStorage.removeItem('zohoRefreshToken');
+        setError('Your Zoho session expired. Please reconnect from the dashboard.');
+        setLoading(false);
+        return;
       }
       setError(err.response?.data?.details || err.response?.data?.error || 'Failed to fetch client data');
     } finally {

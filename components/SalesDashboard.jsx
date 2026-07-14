@@ -20,7 +20,7 @@ function fmtK(value) {
   return `£${(value / 1000).toFixed(0)}k`;
 }
 
-export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, zohoRefreshToken, user }) {
+export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, zohoRefreshToken, onAuthExpired, user }) {
   const router = useRouter();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -53,16 +53,26 @@ export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, zohoRef
     } catch (err) {
       // Access token expired (Zoho tokens last ~1hr) - silently renew with
       // the refresh token and retry once, instead of forcing a reconnect.
-      if (err.response?.status === 401 && zohoRefreshToken && !isRetry) {
-        try {
-          const { accessToken: newToken, apiDomain: newDomain } = await refreshZohoToken(zohoRefreshToken);
-          await fetchDeals(newToken, newDomain, true);
-          return;
-        } catch (refreshErr) {
-          setError('Your Zoho session expired and could not be renewed automatically. Please reconnect.');
-          setLoading(false);
-          return;
+      if (err.response?.status === 401 && !isRetry) {
+        if (zohoRefreshToken) {
+          try {
+            const { accessToken: newToken, apiDomain: newDomain } = await refreshZohoToken(zohoRefreshToken);
+            await fetchDeals(newToken, newDomain, true);
+            return;
+          } catch (refreshErr) {
+            // Refresh token itself is dead (revoked, or predates this
+            // feature) - clear everything so the Connect button reappears
+            // instead of getting stuck retrying a token that can never work.
+            onAuthExpired?.();
+            setError('Your Zoho session expired. Click "Connect Zoho CRM" to reconnect.');
+            setLoading(false);
+            return;
+          }
         }
+        onAuthExpired?.();
+        setError('Your Zoho session expired. Click "Connect Zoho CRM" to reconnect.');
+        setLoading(false);
+        return;
       }
       const errorMsg = err.response?.data?.details || err.response?.data?.error || 'Failed to fetch deals';
       setError(errorMsg);
@@ -91,6 +101,7 @@ export default function SalesDashboard({ zohoAccessToken, zohoApiDomain, zohoRef
   if (!zohoAccessToken) {
     return (
       <div className="dashboard-content">
+        {error && <div className="error">{error}</div>}
         <div className="connect-prompt">
           <p>Please authenticate with Zoho CRM to view sales data</p>
           <button
