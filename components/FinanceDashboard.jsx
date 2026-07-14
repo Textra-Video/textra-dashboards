@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import XeroExplorer from './XeroExplorer';
 
 const XERO_AUTH_URL = `https://login.xero.com/identity/connect/authorize?response_type=code&client_id=${process.env.NEXT_PUBLIC_XERO_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_XERO_REDIRECT_URI)}`;
 
@@ -78,32 +79,10 @@ export default function FinanceDashboard({ user }) {
       {error && <div className="error">Error: {error}</div>}
 
       {data && (
-        <>
-          <div className="error" style={{ background: '#fff3cd', color: '#664d03', borderColor: '#ffe69c' }}>
-            Xero is connected. Real financial metrics (cash balance, runway, burn, MRR) are being built next -
-            the previous version of this dashboard showed fabricated numbers, which we&apos;ve removed rather
-            than keep displaying. Below is what&apos;s confirmed live from your Xero organisation right now.
-          </div>
-
-          <div className="section-title">Connected Bank Accounts</div>
-          <div className="chart-container">
-            <div className="deal-list">
-              {data.bankAccounts.map((acc) => (
-                <div key={acc.code} className="deal-list-row">
-                  <div className="deal-list-main">
-                    <span className="deal-list-name">{acc.name}</span>
-                    <span className="deal-list-stage">{acc.status}</span>
-                  </div>
-                  <div className="deal-list-meta">
-                    <span>Code: {acc.code}</span>
-                    <span>Currency: {acc.currency}</span>
-                  </div>
-                </div>
-              ))}
-              {data.bankAccounts.length === 0 && <p className="last-updated">No bank accounts found.</p>}
-            </div>
-          </div>
-        </>
+        <XeroExplorer onDataSelect={(selectedMetrics) => {
+          console.log('Selected metrics for dashboard:', selectedMetrics);
+          // This callback can be used to save user preferences
+        }} />
       )}
     </div>
   );
