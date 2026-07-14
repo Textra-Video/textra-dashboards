@@ -111,8 +111,15 @@ export default function ClientDetail() {
                       <span>{fmtK(d.value)}</span>
                       <span>Owner: {d.owner}</span>
                       <span>Probability: {d.probability}%</span>
+                      {d.contact && <span>Contact: {d.contact}</span>}
                       {d.closeDate && <span>Close: {new Date(d.closeDate).toLocaleDateString('en-GB')}</span>}
                     </div>
+                    {d.nextStep && (
+                      <div className="deal-list-nextstep">Next step: {d.nextStep}</div>
+                    )}
+                    {!d.isOpen && d.reasonForLoss && (
+                      <div className="deal-list-nextstep">Lost reason: {d.reasonForLoss}</div>
+                    )}
                   </div>
                 ))}
               </div>

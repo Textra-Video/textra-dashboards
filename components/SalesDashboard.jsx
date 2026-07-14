@@ -21,6 +21,8 @@ function fmtK(value) {
 
 const ZOHO_AUTH_URL = `https://accounts.zoho.eu/oauth/v2/auth?scope=ZohoCRM.modules.READ,ZohoCRM.settings.READ&client_id=${process.env.NEXT_PUBLIC_ZOHO_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_ZOHO_REDIRECT_URI)}&access_type=offline&prompt=consent`;
 
+const EMPTY_FILTERS = { stage: '', owner: '', source: '', dateFrom: '', dateTo: '' };
+
 export default function SalesDashboard({ user }) {
   const router = useRouter();
   const [data, setData] = useState(null);
@@ -29,6 +31,7 @@ export default function SalesDashboard({ user }) {
   const [notConnected, setNotConnected] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
 
   // Zoho auth is now a single shared, server-side connection (Redis) - no
   // token to pass, the API figures out who's connected and auto-refreshes.
@@ -64,6 +67,29 @@ export default function SalesDashboard({ user }) {
     const q = search.trim().toLowerCase();
     return data.clients.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 8);
   }, [data, search]);
+
+  const filterOptions = useMemo(() => {
+    if (!data) return { stages: [], owners: [], sources: [] };
+    return {
+      stages: [...new Set(data.deals.map((d) => d.stage))].sort(),
+      owners: [...new Set(data.deals.map((d) => d.owner))].sort(),
+      sources: [...new Set(data.deals.map((d) => d.leadSource))].sort(),
+    };
+  }, [data]);
+
+  const filteredDeals = useMemo(() => {
+    if (!data) return [];
+    return data.deals.filter((d) => {
+      if (filters.stage && d.stage !== filters.stage) return false;
+      if (filters.owner && d.owner !== filters.owner) return false;
+      if (filters.source && d.leadSource !== filters.source) return false;
+      if (filters.dateFrom && (!d.closeDate || new Date(d.closeDate) < new Date(filters.dateFrom))) return false;
+      if (filters.dateTo && (!d.closeDate || new Date(d.closeDate) > new Date(filters.dateTo))) return false;
+      return true;
+    });
+  }, [data, filters]);
+
+  const hasActiveFilters = Object.values(filters).some(Boolean);
 
   const goToClient = (name) => {
     if (!name) return;
@@ -117,7 +143,7 @@ export default function SalesDashboard({ user }) {
             <div className="metric-card">
               <div className="metric-label">Total Pipeline</div>
               <div className="metric-value">{fmtK(data.totalPipeline)}</div>
-              <div className="metric-subtext">Est. conversion (20%): {fmtK(data.totalPipeline * 0.2)}</div>
+              <div className="metric-subtext">Weighted forecast: {fmtK(data.weightedForecast)}</div>
             </div>
             <div className="metric-card success">
               <div className="metric-label">Confirmed Bookings</div>
@@ -133,6 +159,11 @@ export default function SalesDashboard({ user }) {
               <div className="metric-label">Monthly Run Rate</div>
               <div className="metric-value">{fmtK(data.monthlyRunRate)}</div>
               <div className="metric-subtext">Closed Won this month</div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-label">Avg Sales Cycle</div>
+              <div className="metric-value">{data.avgSalesCycle !== null ? `${data.avgSalesCycle}d` : '—'}</div>
+              <div className="metric-subtext">Based on Closed Won deals</div>
             </div>
           </div>
 
@@ -221,25 +252,178 @@ export default function SalesDashboard({ user }) {
             </div>
           </div>
 
-          {data.stuckDeals.length > 0 && (
+          <div className="section-title">Pipeline by Source</div>
+          <div className="chart-container">
+            <div className="chart-title">Open Pipeline Value by Lead Source (£k)</div>
+            <div className="chart-wrapper">
+              <Bar
+                data={{
+                  labels: Object.keys(data.bySource),
+                  datasets: [
+                    {
+                      label: 'Pipeline Value',
+                      data: Object.values(data.bySource).map((v) => v / 1000),
+                      backgroundColor: '#1A71B1',
+                      borderRadius: 6,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: { y: { beginAtZero: true } },
+                }}
+              />
+            </div>
+          </div>
+
+          {Object.keys(data.lossReasons).length > 0 && (
             <>
-              <div className="section-title">Alerts</div>
+              <div className="section-title">Why We Lose</div>
               <div className="chart-container">
-                <div className="chart-title">⚠ Deals {'>'}60 Days Overdue ({data.stuckDeals.length})</div>
-                <div className="deal-chip-list">
-                  {data.stuckDeals.map((d) => (
-                    <button
-                      key={d.id}
-                      className="deal-chip alert"
-                      onClick={() => goToClient(d.account)}
-                      title={`Owner: ${d.owner} · Value: ${fmtK(d.value)} · Probability: ${d.probability}%`}
-                    >
-                      <span className="deal-chip-name">{d.name}</span>
-                      <span className="deal-chip-meta">{d.stage}: {d.daysOverdue}d</span>
-                    </button>
-                  ))}
+                <div className="chart-title">Closed Lost Deals by Reason ({Object.values(data.lossReasons).reduce((a, b) => a + b, 0)})</div>
+                <div className="chart-wrapper">
+                  <Doughnut
+                    data={{
+                      labels: Object.keys(data.lossReasons),
+                      datasets: [
+                        {
+                          data: Object.values(data.lossReasons),
+                          backgroundColor: ['#d03b3b', '#b03434', '#e07a5f', '#f2a65a', '#273572', '#1A71B1', '#66bcad'],
+                        },
+                      ],
+                    }}
+                    options={{ responsive: true, maintainAspectRatio: false }}
+                  />
                 </div>
               </div>
+            </>
+          )}
+
+          <div className="section-title">Browse Deals</div>
+          <div className="chart-container">
+            <div className="filters-bar">
+              <select
+                className="filter-select"
+                value={filters.stage}
+                onChange={(e) => setFilters((f) => ({ ...f, stage: e.target.value }))}
+              >
+                <option value="">All Stages</option>
+                {filterOptions.stages.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <select
+                className="filter-select"
+                value={filters.owner}
+                onChange={(e) => setFilters((f) => ({ ...f, owner: e.target.value }))}
+              >
+                <option value="">All Owners</option>
+                {filterOptions.owners.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+              <select
+                className="filter-select"
+                value={filters.source}
+                onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value }))}
+              >
+                <option value="">All Sources</option>
+                {filterOptions.sources.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <input
+                type="date"
+                className="filter-select"
+                value={filters.dateFrom}
+                onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
+                title="Close date from"
+              />
+              <input
+                type="date"
+                className="filter-select"
+                value={filters.dateTo}
+                onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))}
+                title="Close date to"
+              />
+              <select className="filter-select" disabled title="Add a Category field in Zoho CRM to enable this filter">
+                <option>Category (coming soon)</option>
+              </select>
+              {hasActiveFilters && (
+                <button className="filter-reset" onClick={() => setFilters(EMPTY_FILTERS)}>
+                  Reset
+                </button>
+              )}
+            </div>
+
+            <p className="last-updated" style={{ margin: '14px 0' }}>
+              {filteredDeals.length} of {data.deals.length} deals
+            </p>
+
+            <div className="deal-list">
+              {filteredDeals.map((d) => (
+                <div key={d.id} className="deal-list-row deal-list-row-clickable" onClick={() => goToClient(d.account)}>
+                  <div className="deal-list-main">
+                    <span className="deal-list-name">{d.name} — {d.account}</span>
+                    <span className={`deal-list-stage ${d.isWon ? 'won' : ''}`}>{d.stage}</span>
+                  </div>
+                  <div className="deal-list-meta">
+                    <span>{fmtK(d.value)}</span>
+                    <span>Owner: {d.owner}</span>
+                    <span>Source: {d.leadSource}</span>
+                    {d.closeDate && <span>Close: {new Date(d.closeDate).toLocaleDateString('en-GB')}</span>}
+                  </div>
+                </div>
+              ))}
+              {filteredDeals.length === 0 && <p className="last-updated">No deals match these filters.</p>}
+            </div>
+          </div>
+
+          {(data.stuckDeals.length > 0 || data.staleDeals.length > 0) && (
+            <>
+              <div className="section-title">Alerts</div>
+
+              {data.stuckDeals.length > 0 && (
+                <div className="chart-container">
+                  <div className="chart-title">⚠ Deals {'>'}60 Days Overdue ({data.stuckDeals.length})</div>
+                  <div className="deal-chip-list">
+                    {data.stuckDeals.map((d) => (
+                      <button
+                        key={d.id}
+                        className="deal-chip alert"
+                        onClick={() => goToClient(d.account)}
+                        title={`Owner: ${d.owner} · Value: ${fmtK(d.value)} · Probability: ${d.probability}%`}
+                      >
+                        <span className="deal-chip-name">{d.name}</span>
+                        <span className="deal-chip-meta">{d.stage}: {d.daysOverdue}d</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {data.staleDeals.length > 0 && (
+                <div className="chart-container">
+                  <div className="chart-title">⚠ No Activity in 30+ Days ({data.staleDeals.length})</div>
+                  <div className="deal-chip-list">
+                    {data.staleDeals.map((d) => (
+                      <button
+                        key={d.id}
+                        className="deal-chip alert"
+                        onClick={() => goToClient(d.account)}
+                        title={`Owner: ${d.owner} · Value: ${fmtK(d.value)} · Stage: ${d.stage}`}
+                      >
+                        <span className="deal-chip-name">{d.name}</span>
+                        <span className="deal-chip-meta">
+                          {d.daysSinceActivity !== null ? `${d.daysSinceActivity}d since activity` : 'No activity recorded'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </>
