@@ -34,6 +34,28 @@ function InfoTooltip({ text }) {
   );
 }
 
+// Shared handler that swaps the cursor to a pointer while hovering a
+// clickable chart element, so it's discoverable that charts are clickable.
+function onChartHover(event, elements) {
+  event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+}
+
+// £k-valued bar/doughnut tooltip: "£214k (18%)"
+function currencyTooltipCallback(ctx) {
+  const value = ctx.parsed.y !== undefined ? ctx.parsed.y : ctx.parsed;
+  const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+  const pct = total ? Math.round((value / total) * 100) : 0;
+  return ` £${value}k (${pct}%)`;
+}
+
+// Count-valued doughnut tooltip: "5 deals (36%)"
+function countTooltipCallback(ctx) {
+  const value = ctx.parsed;
+  const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+  const pct = total ? Math.round((value / total) * 100) : 0;
+  return ` ${value} deal${value !== 1 ? 's' : ''} (${pct}%)`;
+}
+
 const ZOHO_AUTH_URL = `https://accounts.zoho.eu/oauth/v2/auth?scope=ZohoCRM.modules.READ,ZohoCRM.settings.READ&client_id=${process.env.NEXT_PUBLIC_ZOHO_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_ZOHO_REDIRECT_URI)}&access_type=offline&prompt=consent`;
 
 const EMPTY_FILTERS = { stage: '', owner: '', source: '', dateFrom: '', dateTo: '' };
@@ -83,6 +105,7 @@ export default function SalesDashboard({ user }) {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [activeSection, setActiveSection] = useState('overview');
   const [activeMetric, setActiveMetric] = useState(null);
+  const [chartDrilldown, setChartDrilldown] = useState(null);
 
   // Zoho auth is now a single shared, server-side connection (Redis) - no
   // token to pass, the API figures out who's connected and auto-refreshes.
@@ -158,6 +181,68 @@ export default function SalesDashboard({ user }) {
     if (!name) return;
     router.push(`/dashboards/clients/${encodeURIComponent(name)}`);
   };
+
+  const closeModal = () => {
+    setActiveMetric(null);
+    setChartDrilldown(null);
+  };
+
+  // Chart click handlers - each maps the clicked bar/segment back to the
+  // matching deals, computed client-side from data.deals so no extra API
+  // round-trip is needed.
+  const handleStageClick = (evt, elements) => {
+    if (!elements.length || !data) return;
+    const stage = Object.keys(data.byStage)[elements[0].index];
+    setChartDrilldown({
+      title: `Stage: ${stage}`,
+      description: `All deals currently at the "${stage}" stage (full funnel, including Closed Won/Lost).`,
+      deals: data.deals.filter((d) => d.stage === stage),
+    });
+  };
+
+  const handleSizeClick = (evt, elements) => {
+    if (!elements.length || !data) return;
+    const idx = elements[0].index;
+    const bucketLabel = ['Micro (<£10k)', 'SME (£10-50k)', 'Enterprise (>£50k)'][idx];
+    const openDeals = data.deals.filter((d) => d.isOpen);
+    const bucketDeals = openDeals.filter((d) => {
+      if (idx === 0) return d.value < 10000;
+      if (idx === 1) return d.value >= 10000 && d.value < 50000;
+      return d.value >= 50000;
+    });
+    setChartDrilldown({
+      title: bucketLabel,
+      description: `Open pipeline deals in the ${bucketLabel} value range.`,
+      deals: bucketDeals,
+    });
+  };
+
+  const handleSourceClick = (evt, elements) => {
+    if (!elements.length || !data) return;
+    const source = Object.keys(data.bySource)[elements[0].index];
+    setChartDrilldown({
+      title: `Source: ${source}`,
+      description: `Open pipeline deals sourced via "${source}".`,
+      deals: data.deals.filter((d) => d.isOpen && d.leadSource === source),
+    });
+  };
+
+  const handleLossReasonClick = (evt, elements) => {
+    if (!elements.length || !data) return;
+    const reason = Object.keys(data.lossReasons)[elements[0].index];
+    setChartDrilldown({
+      title: `Lost Reason: ${reason}`,
+      description: `Closed Lost deals where the recorded reason was "${reason}".`,
+      deals: data.deals.filter((d) => d.isLost && (d.reasonForLoss || 'No reason recorded') === reason),
+    });
+  };
+
+  const modalInfo = activeMetric
+    ? METRIC_INFO[activeMetric]
+    : chartDrilldown
+    ? { title: chartDrilldown.title, description: chartDrilldown.description }
+    : null;
+  const modalDeals = activeMetric ? metricDeals[activeMetric] : chartDrilldown ? chartDrilldown.deals : [];
 
   if (notConnected) {
     return (
@@ -300,7 +385,7 @@ export default function SalesDashboard({ user }) {
               <div className="chart-container">
                 <div className="chart-title">
                   Deal Flow — Full Funnel (£k)
-                  <InfoTooltip text="Total value of all deals at each Zoho pipeline stage, including Closed Won/Lost for context on the full funnel." />
+                  <InfoTooltip text="Total value of all deals at each Zoho pipeline stage, including Closed Won/Lost for context on the full funnel. Click a bar to see the deals in it." />
                 </div>
                 <div className="chart-wrapper">
                   <Bar
@@ -318,8 +403,13 @@ export default function SalesDashboard({ user }) {
                     options={{
                       responsive: true,
                       maintainAspectRatio: false,
-                      plugins: { legend: { display: false } },
+                      plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: currencyTooltipCallback } },
+                      },
                       scales: { y: { beginAtZero: true } },
+                      onClick: handleStageClick,
+                      onHover: onChartHover,
                     }}
                   />
                 </div>
@@ -330,7 +420,7 @@ export default function SalesDashboard({ user }) {
               <div className="chart-container">
                 <div className="chart-title">
                   Open Pipeline Value Distribution
-                  <InfoTooltip text="Open pipeline deals split into Micro (<£10k), SME (£10k-50k) and Enterprise (>£50k) buckets by deal value." />
+                  <InfoTooltip text="Open pipeline deals split into Micro (<£10k), SME (£10k-50k) and Enterprise (>£50k) buckets by deal value. Click a segment to see the deals in it." />
                 </div>
                 <div className="chart-wrapper">
                   <Doughnut
@@ -347,7 +437,13 @@ export default function SalesDashboard({ user }) {
                         },
                       ],
                     }}
-                    options={{ responsive: true, maintainAspectRatio: false }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: { tooltip: { callbacks: { label: currencyTooltipCallback } } },
+                      onClick: handleSizeClick,
+                      onHover: onChartHover,
+                    }}
                   />
                 </div>
               </div>
@@ -357,7 +453,7 @@ export default function SalesDashboard({ user }) {
               <div className="chart-container">
                 <div className="chart-title">
                   Open Pipeline Value by Lead Source (£k)
-                  <InfoTooltip text="Open pipeline value grouped by Zoho's Lead Source field - which channels are generating live pipeline right now." />
+                  <InfoTooltip text="Open pipeline value grouped by Zoho's Lead Source field - which channels are generating live pipeline right now. Click a bar to see the deals in it." />
                 </div>
                 <div className="chart-wrapper">
                   <Bar
@@ -375,8 +471,13 @@ export default function SalesDashboard({ user }) {
                     options={{
                       responsive: true,
                       maintainAspectRatio: false,
-                      plugins: { legend: { display: false } },
+                      plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: currencyTooltipCallback } },
+                      },
                       scales: { y: { beginAtZero: true } },
+                      onClick: handleSourceClick,
+                      onHover: onChartHover,
                     }}
                   />
                 </div>
@@ -387,7 +488,7 @@ export default function SalesDashboard({ user }) {
               <div className="chart-container">
                 <div className="chart-title">
                   Closed Lost Deals by Reason ({Object.values(data.lossReasons).reduce((a, b) => a + b, 0)})
-                  <InfoTooltip text="Count of Closed Lost deals grouped by Zoho's Reason for Loss field." />
+                  <InfoTooltip text="Count of Closed Lost deals grouped by Zoho's Reason for Loss field. Click a segment to see the deals in it." />
                 </div>
                 {Object.keys(data.lossReasons).length > 0 ? (
                   <div className="chart-wrapper">
@@ -401,7 +502,13 @@ export default function SalesDashboard({ user }) {
                           },
                         ],
                       }}
-                      options={{ responsive: true, maintainAspectRatio: false }}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { tooltip: { callbacks: { label: countTooltipCallback } } },
+                        onClick: handleLossReasonClick,
+                        onHover: onChartHover,
+                      }}
                     />
                   </div>
                 ) : (
@@ -554,17 +661,19 @@ export default function SalesDashboard({ user }) {
         </div>
       )}
 
-      {activeMetric && data && (
-        <div className="modal-overlay" onClick={() => setActiveMetric(null)}>
+      {modalInfo && (
+        <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{METRIC_INFO[activeMetric].title}</h3>
-              <button className="modal-close" onClick={() => setActiveMetric(null)}>&times;</button>
+              <h3>{modalInfo.title}</h3>
+              <button className="modal-close" onClick={closeModal}>&times;</button>
             </div>
-            <p className="modal-description">{METRIC_INFO[activeMetric].description}</p>
-            <p className="last-updated" style={{ marginBottom: '12px' }}>{metricDeals[activeMetric].length} deals</p>
+            <p className="modal-description">{modalInfo.description}</p>
+            <p className="last-updated" style={{ marginBottom: '12px' }}>
+              {modalDeals.length} deal{modalDeals.length !== 1 ? 's' : ''}
+            </p>
             <div className="deal-list">
-              {metricDeals[activeMetric].map((d) => (
+              {modalDeals.map((d) => (
                 <div key={d.id} className="deal-list-row deal-list-row-clickable" onClick={() => goToClient(d.account)}>
                   <div className="deal-list-main">
                     <span className="deal-list-name">{d.name} — {d.account}</span>
@@ -579,7 +688,7 @@ export default function SalesDashboard({ user }) {
                   </div>
                 </div>
               ))}
-              {metricDeals[activeMetric].length === 0 && <p className="last-updated">No deals in this bucket.</p>}
+              {modalDeals.length === 0 && <p className="last-updated">No deals in this bucket.</p>}
             </div>
           </div>
         </div>
