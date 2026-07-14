@@ -7,9 +7,12 @@ export default async function handler(req, res) {
   try {
     const { accessToken, apiDomain } = await getValidZohoAccessToken();
 
-    const url = module
-      ? `${apiDomain}/crm/v2/settings/fields?module=${module}`
-      : `${apiDomain}/crm/v2/settings/modules`;
+    const url =
+      req.body?.org
+        ? `${apiDomain}/crm/v2/org`
+        : module
+        ? `${apiDomain}/crm/v2/settings/fields?module=${module}`
+        : `${apiDomain}/crm/v2/settings/modules`;
 
     const response = await axios.get(url, {
       headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
