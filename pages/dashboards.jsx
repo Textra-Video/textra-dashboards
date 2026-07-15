@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import axios from 'axios';
 import SalesDashboard from '../components/SalesDashboard';
 import FinanceDashboard from '../components/FinanceDashboard';
+import MarketingDashboard from '../components/MarketingDashboard';
 
 export default function Dashboards() {
   const router = useRouter();
@@ -80,6 +81,12 @@ export default function Dashboards() {
           >
             Finance
           </button>
+          <button
+            className={`nav-button ${activeTab === 'marketing' ? 'active' : ''}`}
+            onClick={() => setActiveTab('marketing')}
+          >
+            Marketing
+          </button>
           <button className="logout-button" onClick={handleLogout}>
             Sign Out
           </button>
@@ -101,6 +108,7 @@ export default function Dashboards() {
 
         {activeTab === 'sales' && <SalesDashboard user={user} />}
         {activeTab === 'finance' && <FinanceDashboard user={user} />}
+        {activeTab === 'marketing' && <MarketingDashboard user={user} />}
 
         <div className="chart-container login-log-card">
           <button className="login-log-toggle" onClick={() => setShowLoginLog((v) => !v)}>
