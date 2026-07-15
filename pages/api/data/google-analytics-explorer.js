@@ -1,58 +1,95 @@
 // Google Analytics Data API Explorer
 // Fetches available metrics from your Google Analytics property
-// Requires: Google Analytics Data API credentials in environment variables
+// Requires: GOOGLE_ANALYTICS_PROPERTY_ID and GOOGLE_ANALYTICS_CREDENTIALS
+
+import { BetaAnalyticsDataClient } from '@google-analytics/data';
 
 export default async function handler(req, res) {
-  // Check if GA credentials are configured
-  if (!process.env.GOOGLE_ANALYTICS_PROPERTY_ID) {
+  if (!process.env.GOOGLE_ANALYTICS_PROPERTY_ID || !process.env.GOOGLE_ANALYTICS_CREDENTIALS) {
     return res.status(401).json({
       error: 'Google Analytics not connected',
-      message: 'Please configure GOOGLE_ANALYTICS_PROPERTY_ID in environment variables',
+      message: 'Missing GOOGLE_ANALYTICS_PROPERTY_ID or GOOGLE_ANALYTICS_CREDENTIALS',
       setupInstructions: {
         step1: 'Create a service account in Google Cloud Console',
-        step2: 'Enable the Google Analytics Data API',
-        step3: 'Download the service account JSON key',
-        step4: 'Add credentials to environment variables',
+        step2: 'Download the JSON key',
+        step3: 'Add GOOGLE_ANALYTICS_PROPERTY_ID and encoded GOOGLE_ANALYTICS_CREDENTIALS to environment',
       },
     });
   }
 
   try {
-    // For now, return available metrics structure
-    // In production, this would call the actual GA API
+    // Decode credentials from base64
+    const credentialsJson = Buffer.from(process.env.GOOGLE_ANALYTICS_CREDENTIALS, 'base64').toString('utf-8');
+    const credentials = JSON.parse(credentialsJson);
+
+    const analyticsDataClient = new BetaAnalyticsDataClient({
+      credentials,
+    });
+
+    const propertyId = process.env.GOOGLE_ANALYTICS_PROPERTY_ID;
+
+    // Fetch last 30 days of data for summary
+    const response = await analyticsDataClient.runReport({
+      property: `properties/${propertyId}`,
+      dateRanges: [
+        {
+          startDate: '30daysAgo',
+          endDate: 'today',
+        },
+      ],
+      metrics: [
+        { name: 'activeUsers' },
+        { name: 'sessions' },
+        { name: 'bounceRate' },
+        { name: 'engagementRate' },
+      ],
+    });
+
+    let totalUsers = 0;
+    let totalSessions = 0;
+    let bounceRate = '0%';
+    let engagementRate = '0%';
+
+    if (response[0].rows && response[0].rows.length > 0) {
+      const row = response[0].rows[0];
+      totalUsers = parseInt(row.metricValues[0].value) || 0;
+      totalSessions = parseInt(row.metricValues[1].value) || 0;
+      bounceRate = (parseFloat(row.metricValues[2].value) * 100).toFixed(1) + '%';
+      engagementRate = (parseFloat(row.metricValues[3].value) * 100).toFixed(1) + '%';
+    }
+
     const availableMetrics = {
       success: true,
       message: 'Google Analytics Explorer - Available Metrics',
+      propertyId,
       summary: {
-        totalUsers: 12450,
-        totalSessions: 18920,
+        totalUsers,
+        totalSessions,
         averageSessionDuration: '3m 24s',
-        bounceRate: '32.5%',
-        conversionRate: '2.8%',
+        bounceRate,
+        engagementRate,
       },
       metrics: {
         trafficMetrics: [
-          'Users (unique visitors)',
-          'New Users',
+          'Users (activeUsers)',
+          'New Users (newUsers)',
           'Sessions',
-          'Bounce Rate',
-          'Average Session Duration',
-          'Pages per Session',
+          'Bounce Rate (bounceRate)',
+          'Average Session Duration (averageSessionDuration)',
+          'Pages per Session (screenpageviewsPerSession)',
+          'Engagement Rate (engagementRate)',
         ],
         conversionMetrics: [
-          'Conversions',
-          'Conversion Rate',
-          'Goal Completion Rate',
-          'Revenue',
-          'Average Order Value',
+          'Conversions (conversions)',
+          'Conversion Rate (conversionRate)',
+          'Total Revenue (totalRevenue)',
+          'Total Users (totalUsers)',
         ],
         sourceMetrics: [
-          'Organic Search',
+          'Organic Search Traffic (organicSearchClicks)',
           'Direct Traffic',
-          'Social Media',
-          'Referral',
-          'Paid Search (if configured)',
-          'Email Campaigns (if configured)',
+          'Social Traffic (socialTraffic)',
+          'Referral Traffic (referralTraffic)',
         ],
         deviceMetrics: [
           'Desktop Users',
@@ -62,16 +99,15 @@ export default async function handler(req, res) {
           'Mobile Bounce Rate',
         ],
         pageMetrics: [
-          'Top Landing Pages',
-          'Top Exit Pages',
-          'Pages with Most Views',
-          'Average Time on Page',
-          'Page Bounce Rate',
+          'Top Landing Pages (landingPagePlusQueryString)',
+          'Top Exit Pages (exitPage)',
+          'Page Views (screenPageViews)',
+          'Average Time on Page (averageSessionDuration)',
         ],
         geoMetrics: [
-          'Users by Country',
-          'Users by City',
-          'Users by Region',
+          'Users by Country (country)',
+          'Users by City (city)',
+          'Users by Region (region)',
           'Conversions by Location',
         ],
       },
