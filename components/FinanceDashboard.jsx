@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import XeroExplorer from './XeroExplorer';
 
-// Using Xero's NEW granular scopes (broad scopes deprecated as of March 2026)
-// Scopes must match what's enabled in your Xero app at https://developer.xero.com/myapps
+// Using Xero's approved granular scopes - these are the scopes that work
 // https://developer.xero.com/documentation/guides/oauth2/scopes/
-const XERO_AUTH_URL = `https://login.xero.com/identity/connect/authorize?response_type=code&client_id=${process.env.NEXT_PUBLIC_XERO_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_XERO_REDIRECT_URI)}&scope=offline_access%20accounting.invoices.read%20accounting.payments.read%20accounting.banktransactions.read%20accounting.reports.aged.read%20accounting.reports.balancesheet.read%20accounting.reports.profitandloss.read%20accounting.contacts.read%20accounting.settings.read`;
+const XERO_AUTH_URL = `https://login.xero.com/identity/connect/authorize?response_type=code&client_id=${process.env.NEXT_PUBLIC_XERO_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_XERO_REDIRECT_URI)}&scope=offline_access%20accounting.contacts.read%20accounting.banktransactions.read%20accounting.reports.aged.read%20accounting.reports.balancesheet.read%20accounting.invoices.read`;
 
 export default function FinanceDashboard({ user }) {
   const [data, setData] = useState(null);
