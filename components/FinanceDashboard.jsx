@@ -53,21 +53,6 @@ export default function FinanceDashboard({ user }) {
     fetchFinancials();
   }, []);
 
-  // Debug: log what data we receive
-  useEffect(() => {
-    if (data) {
-      console.log('[FinanceDashboard Data]', {
-        totalCash: data.totalCash,
-        netIncome: data.netIncome,
-        totalAssets: data.totalAssets,
-        bankAccounts: data.bankAccounts?.length,
-        invoices: data.invoices?.length,
-        payments: data.payments?.length,
-        bankTransactions: data.bankTransactions?.length,
-      });
-    }
-  }, [data]);
-
   if (notConnected) {
     return (
       <div className="dashboard-content">
@@ -210,10 +195,17 @@ export default function FinanceDashboard({ user }) {
                       </tbody>
                     </table>
                   )}
-                  {drilldown.type === 'report' && (
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      <p>Report data is complex and requires custom parsing. View in Xero for full details.</p>
-                    </div>
+                  {drilldown.type === 'summary' && (
+                    <table className="drilldown-table">
+                      <tbody>
+                        {drilldown.summary.map((row, i) => (
+                          <tr key={i}>
+                            <td>{row.label}</td>
+                            <td className="amount">{fmtCurrency(row.value)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   )}
                 </div>
                 {drilldown.xeroLink && (
@@ -251,8 +243,12 @@ export default function FinanceDashboard({ user }) {
                 setDrilldown({
                   title: '📊 Profit & Loss',
                   description: 'Income, expenses, and net income for the current period.',
-                  type: 'report',
-                  items: data.profitAndLoss,
+                  type: 'summary',
+                  summary: [
+                    { label: 'Revenue', value: data.revenue },
+                    { label: 'Expenses', value: data.expenses },
+                    { label: 'Net Income', value: data.netIncome },
+                  ],
                   xeroLink: 'https://go.xero.com/app/Reports/ProfitandLoss',
                 })
               }
@@ -270,8 +266,12 @@ export default function FinanceDashboard({ user }) {
                 setDrilldown({
                   title: '📈 Balance Sheet',
                   description: 'Assets, liabilities, and equity as of today.',
-                  type: 'report',
-                  items: data.balanceSheet,
+                  type: 'summary',
+                  summary: [
+                    { label: 'Total Assets', value: data.totalAssets },
+                    { label: 'Total Liabilities', value: data.totalLiabilities },
+                    { label: 'Total Equity', value: data.totalEquity },
+                  ],
                   xeroLink: 'https://go.xero.com/app/Reports/BalanceSheet',
                 })
               }
