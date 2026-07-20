@@ -44,7 +44,7 @@ export default async function handler(req, res) {
       expiresIn: expires_in,
     });
 
-    res.redirect('/dashboards#xero_connected=1');
+    res.redirect('/dashboards#tab=finance&xero_connected=1');
   } catch (error) {
     console.error('Xero OAuth error:', error.response?.data || error.message);
     const errorMsg = error.response?.data?.error_description || error.response?.data?.error || error.message;

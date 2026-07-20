@@ -39,6 +39,9 @@ export default function Dashboards() {
     const fragment = window.location.hash.substring(1);
     const params = new URLSearchParams(fragment);
 
+    const tab = params.get('tab');
+    if (tab) setActiveTab(tab);
+
     const zohoError = params.get('zoho_error');
     const xeroError = params.get('xero_error');
 
