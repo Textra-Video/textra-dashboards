@@ -33,10 +33,15 @@ async function fetchFinancialData(accessToken, tenantId) {
   // Bank accounts and cash
   try {
     const accountsRes = await fetchWithRetry(accessToken, tenantId, 'Accounts', { where: 'Type=="BANK"' });
+    const sampleAccount = (accountsRes.data.Accounts || [])[0];
+    if (sampleAccount) {
+      console.log('[Xero Bank Account] Fields available:', Object.keys(sampleAccount));
+      console.log('[Xero Bank Account] Sample:', { name: sampleAccount.Name, code: sampleAccount.Code, ...Object.fromEntries(Object.entries(sampleAccount).filter(([k]) => k.toLowerCase().includes('balance'))) });
+    }
     data.bankAccounts = (accountsRes.data.Accounts || []).map((acc) => ({
       name: acc.Name,
       code: acc.Code,
-      balance: acc.CurrentGeographicRegion?.indexOf('UK') >= 0 ? 0 : 0,
+      balance: 0, // TODO: extract correct balance field
       currency: acc.CurrencyCode,
     }));
     data.totalCash = data.bankAccounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
