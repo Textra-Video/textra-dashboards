@@ -55,13 +55,24 @@ async function fetchFinancialData(accessToken, tenantId) {
     }
     data.invoices = (invoicesRes.data.Invoices || [])
       .filter((inv) => inv.Type === 'ACCREC' && inv.Status === 'AUTHORISED')
-      .map((inv) => ({
-        invoiceNumber: inv.InvoiceNumber,
-        contact: inv.Contact?.Name || 'Unknown',
-        amount: inv.Total || 0,
-        dueDate: inv.DueDate,
-        status: inv.Status,
-      }));
+      .map((inv) => {
+        let dueDate = inv.DueDate;
+        // Parse Microsoft JSON date format on API side
+        if (dueDate && typeof dueDate === 'string' && dueDate.startsWith('/Date(')) {
+          const match = dueDate.match(/^\/Date\((\d+)/);
+          if (match) {
+            const d = new Date(parseInt(match[1]));
+            dueDate = d.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+          }
+        }
+        return {
+          invoiceNumber: inv.InvoiceNumber,
+          contact: inv.Contact?.Name || 'Unknown',
+          amount: inv.Total || 0,
+          dueDate,
+          status: inv.Status,
+        };
+      });
     data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
   } catch (err) {
     console.error('Invoices error:', err.response?.status, err.response?.data?.Detail);
@@ -78,13 +89,24 @@ async function fetchFinancialData(accessToken, tenantId) {
     }
     data.payments = (billsRes.data.Invoices || [])
       .filter((bill) => bill.Type === 'ACCPAY' && bill.Status === 'AUTHORISED')
-      .map((bill) => ({
-        invoiceNumber: bill.InvoiceNumber,
-        contact: bill.Contact?.Name || 'Unknown',
-        amount: bill.Total || 0,
-        dueDate: bill.DueDate,
-        status: bill.Status,
-      }));
+      .map((bill) => {
+        let dueDate = bill.DueDate;
+        // Parse Microsoft JSON date format on API side
+        if (dueDate && typeof dueDate === 'string' && dueDate.startsWith('/Date(')) {
+          const match = dueDate.match(/^\/Date\((\d+)/);
+          if (match) {
+            const d = new Date(parseInt(match[1]));
+            dueDate = d.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+          }
+        }
+        return {
+          invoiceNumber: bill.InvoiceNumber,
+          contact: bill.Contact?.Name || 'Unknown',
+          amount: bill.Total || 0,
+          dueDate,
+          status: bill.Status,
+        };
+      });
     data.totalPayable = data.payments.reduce((sum, bill) => sum + (bill.amount || 0), 0);
   } catch (err) {
     console.error('Bills error:', err.response?.status, err.response?.data?.Detail);
@@ -97,12 +119,23 @@ async function fetchFinancialData(accessToken, tenantId) {
     const txRes = await fetchWithRetry(accessToken, tenantId, 'BankTransactions');
     data.bankTransactions = (txRes.data.BankTransactions || [])
       .slice(0, 20)
-      .map((tx) => ({
-        date: tx.DateString,
-        description: tx.LineItems?.[0]?.Description || 'Transaction',
-        amount: tx.Total || 0,
-        type: tx.Type,
-      }));
+      .map((tx) => {
+        let date = tx.DateString || tx.Date;
+        // Parse Microsoft JSON date format if present
+        if (date && typeof date === 'string' && date.startsWith('/Date(')) {
+          const match = date.match(/^\/Date\((\d+)/);
+          if (match) {
+            const d = new Date(parseInt(match[1]));
+            date = d.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+          }
+        }
+        return {
+          date,
+          description: tx.LineItems?.[0]?.Description || 'Transaction',
+          amount: tx.Total || 0,
+          type: tx.Type,
+        };
+      });
   } catch (err) {
     console.error('Bank transactions error:', err.response?.status);
     data.bankTransactions = [];
