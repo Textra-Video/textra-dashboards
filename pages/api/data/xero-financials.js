@@ -46,18 +46,18 @@ async function fetchFinancialData(accessToken, tenantId) {
     data.totalCash = 0;
   }
 
-  // Invoices (accounts receivable)
+  // Invoices (accounts receivable) - get all invoices and filter in code
   try {
-    const invoicesRes = await fetchWithRetry(accessToken, tenantId, 'Invoices', {
-      where: 'Type=="ACCREC"&&Status=="AUTHORISED"',
-    });
-    data.invoices = (invoicesRes.data.Invoices || []).map((inv) => ({
-      invoiceNumber: inv.InvoiceNumber,
-      contact: inv.Contact?.Name || 'Unknown',
-      amount: inv.Total || 0,
-      dueDate: inv.DueDate,
-      status: inv.Status,
-    }));
+    const invoicesRes = await fetchWithRetry(accessToken, tenantId, 'Invoices');
+    data.invoices = (invoicesRes.data.Invoices || [])
+      .filter((inv) => inv.Type === 'ACCREC' && inv.Status === 'AUTHORISED')
+      .map((inv) => ({
+        invoiceNumber: inv.InvoiceNumber,
+        contact: inv.Contact?.Name || 'Unknown',
+        amount: inv.Total || 0,
+        dueDate: inv.DueDate,
+        status: inv.Status,
+      }));
     data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
   } catch (err) {
     console.error('Invoices error:', err.response?.status, err.response?.data?.Detail);
@@ -65,18 +65,18 @@ async function fetchFinancialData(accessToken, tenantId) {
     data.totalReceivable = 0;
   }
 
-  // Bill payments (accounts payable)
+  // Bill payments (accounts payable) - get all invoices and filter in code
   try {
-    const billsRes = await fetchWithRetry(accessToken, tenantId, 'Invoices', {
-      where: 'Type=="ACCPAY"&&Status=="AUTHORISED"',
-    });
-    data.payments = (billsRes.data.Invoices || []).map((bill) => ({
-      invoiceNumber: bill.InvoiceNumber,
-      contact: bill.Contact?.Name || 'Unknown',
-      amount: bill.Total || 0,
-      dueDate: bill.DueDate,
-      status: bill.Status,
-    }));
+    const billsRes = await fetchWithRetry(accessToken, tenantId, 'Invoices');
+    data.payments = (billsRes.data.Invoices || [])
+      .filter((bill) => bill.Type === 'ACCPAY' && bill.Status === 'AUTHORISED')
+      .map((bill) => ({
+        invoiceNumber: bill.InvoiceNumber,
+        contact: bill.Contact?.Name || 'Unknown',
+        amount: bill.Total || 0,
+        dueDate: bill.DueDate,
+        status: bill.Status,
+      }));
     data.totalPayable = data.payments.reduce((sum, bill) => sum + (bill.amount || 0), 0);
   } catch (err) {
     console.error('Bills error:', err.response?.status, err.response?.data?.Detail);
