@@ -30,56 +30,90 @@ async function fetchWithRetry(accessToken, tenantId, endpoint, params = {}) {
 async function fetchFinancialData(accessToken, tenantId) {
   const data = {};
 
+  // Bank accounts and cash
   try {
     const accountsRes = await fetchWithRetry(accessToken, tenantId, 'Accounts', { where: 'Type=="BANK"' });
     data.bankAccounts = (accountsRes.data.Accounts || []).map((acc) => ({
       name: acc.Name,
       code: acc.Code,
-      balance: acc.CurrencyCode === 'GBP' ? acc.CurrentGeographicRegion?.indexOf('UK') >= 0 ? 0 : 0 : 0,
+      balance: acc.CurrentGeographicRegion?.indexOf('UK') >= 0 ? 0 : 0,
       currency: acc.CurrencyCode,
     }));
     data.totalCash = data.bankAccounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
   } catch (err) {
-    console.error('Bank accounts error:', err.response?.status, err.response?.data?.Detail);
+    console.error('Bank accounts error:', err.response?.status);
+    data.bankAccounts = [];
+    data.totalCash = 0;
   }
 
+  // Invoices (accounts receivable)
   try {
     const invoicesRes = await fetchWithRetry(accessToken, tenantId, 'Invoices', {
       where: 'Status=="AUTHORISED" || Status=="SUBMITTED"',
     });
-    data.invoices = (invoicesRes.data.Invoices || []);
-    data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
+    data.invoices = (invoicesRes.data.Invoices || []).map((inv) => ({
+      invoiceNumber: inv.InvoiceNumber,
+      contact: inv.Contact?.Name || 'Unknown',
+      amount: inv.Total || 0,
+      dueDate: inv.DueDate,
+      status: inv.Status,
+    }));
+    data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
   } catch (err) {
-    console.error('Invoices error:', err.response?.status, err.response?.data?.Detail);
+    console.error('Invoices error:', err.response?.status);
+    data.invoices = [];
+    data.totalReceivable = 0;
   }
 
+  // Bill payments (accounts payable)
   try {
-    const paymentsRes = await fetchWithRetry(accessToken, tenantId, 'BankTransactions', {
-      where: 'Type=="ACCRECPAYABLE"',
+    const billsRes = await fetchWithRetry(accessToken, tenantId, 'Invoices', {
+      where: 'Type=="ACCRECPAYABLE" && Status=="AUTHORISED"',
     });
-    data.payments = (paymentsRes.data.BankTransactions || []);
-    data.totalPayable = data.payments.reduce((sum, pmt) => sum + (pmt.Total || 0), 0);
+    data.payments = (billsRes.data.Invoices || []).map((bill) => ({
+      invoiceNumber: bill.InvoiceNumber,
+      contact: bill.Contact?.Name || 'Unknown',
+      amount: bill.Total || 0,
+      dueDate: bill.DueDate,
+      status: bill.Status,
+    }));
+    data.totalPayable = data.payments.reduce((sum, bill) => sum + (bill.amount || 0), 0);
   } catch (err) {
-    console.error('Payments error:', err.response?.status, err.response?.data?.Detail);
+    console.error('Bills error:', err.response?.status);
+    data.payments = [];
+    data.totalPayable = 0;
   }
 
+  // Bank transactions
   try {
     const txRes = await fetchWithRetry(accessToken, tenantId, 'BankTransactions');
-    data.bankTransactions = (txRes.data.BankTransactions || []).slice(0, 20);
+    data.bankTransactions = (txRes.data.BankTransactions || [])
+      .slice(0, 20)
+      .map((tx) => ({
+        date: tx.DateString,
+        description: tx.LineItems?.[0]?.Description || 'Transaction',
+        amount: tx.Total || 0,
+        type: tx.Type,
+      }));
   } catch (err) {
-    console.error('Bank transactions error:', err.response?.status, err.response?.data?.Detail);
+    console.error('Bank transactions error:', err.response?.status);
+    data.bankTransactions = [];
   }
 
-  // P&L and Balance Sheet - these return Report XML, not standard objects
+  // P&L and Balance Sheet (reports return XML/complex structure)
   try {
     const plRes = await fetchWithRetry(accessToken, tenantId, 'Reports/ProfitAndLoss');
     data.profitAndLoss = plRes.data;
-    // Extract key metrics if available
+    // For now, set placeholder values - these would need proper XML parsing
     data.revenue = 0;
     data.expenses = 0;
     data.netIncome = 0;
   } catch (err) {
-    console.error('P&L report error:', err.response?.status, err.response?.data?.Detail);
+    console.error('P&L report error:', err.response?.status);
+    data.profitAndLoss = null;
+    data.revenue = 0;
+    data.expenses = 0;
+    data.netIncome = 0;
   }
 
   try {
@@ -89,7 +123,11 @@ async function fetchFinancialData(accessToken, tenantId) {
     data.totalLiabilities = 0;
     data.totalEquity = 0;
   } catch (err) {
-    console.error('Balance sheet error:', err.response?.status, err.response?.data?.Detail);
+    console.error('Balance sheet error:', err.response?.status);
+    data.balanceSheet = null;
+    data.totalAssets = 0;
+    data.totalLiabilities = 0;
+    data.totalEquity = 0;
   }
 
   return data;
@@ -114,13 +152,12 @@ export default async function handler(req, res) {
     }
     console.error('Xero financials error:', {
       status: error.response?.status,
-      data: error.response?.data,
       message: error.message,
     });
     const status = error.response?.status === 401 ? 401 : 500;
     res.status(status).json({
       error: 'Failed to fetch Xero data',
-      details: error.response?.data?.Detail || error.message,
+      details: error.message,
     });
   }
 }

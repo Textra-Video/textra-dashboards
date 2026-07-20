@@ -101,19 +101,91 @@ export default function FinanceDashboard({ user }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {drilldown.items?.map((acc, i) => (
-                          <tr key={i}>
-                            <td>{acc.name}</td>
-                            <td className="code">{acc.code}</td>
-                            <td className="amount">{fmtCurrency(acc.balance)}</td>
-                            <td>{acc.currency}</td>
+                        {drilldown.items?.length > 0 ? (
+                          drilldown.items.map((acc, i) => (
+                            <tr key={i}>
+                              <td>{acc.name}</td>
+                              <td className="code">{acc.code}</td>
+                              <td className="amount">{fmtCurrency(acc.balance)}</td>
+                              <td>{acc.currency}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                              No accounts to display
+                            </td>
                           </tr>
-                        ))}
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+                  {drilldown.type === 'invoices' && (
+                    <table className="drilldown-table">
+                      <thead>
+                        <tr>
+                          <th>Invoice #</th>
+                          <th>Contact</th>
+                          <th>Amount</th>
+                          <th>Due Date</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {drilldown.items?.length > 0 ? (
+                          drilldown.items.map((inv, i) => (
+                            <tr key={i}>
+                              <td>{inv.invoiceNumber}</td>
+                              <td>{inv.contact}</td>
+                              <td className="amount">{fmtCurrency(inv.amount)}</td>
+                              <td>{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : '—'}</td>
+                              <td>{inv.status}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
+                              No invoices to display
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+                  {drilldown.type === 'transactions' && (
+                    <table className="drilldown-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Description</th>
+                          <th>Amount</th>
+                          <th>Type</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {drilldown.items?.length > 0 ? (
+                          drilldown.items.map((tx, i) => (
+                            <tr key={i}>
+                              <td>{tx.date ? new Date(tx.date).toLocaleDateString() : '—'}</td>
+                              <td>{tx.description}</td>
+                              <td className="amount">{fmtCurrency(tx.amount)}</td>
+                              <td>{tx.type}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                              No transactions to display
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   )}
                   {drilldown.type === 'report' && (
-                    <pre className="report-data">{JSON.stringify(drilldown.items, null, 2)}</pre>
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                      <p>Report data is complex and requires custom parsing. View in Xero for full details.</p>
+                    </div>
                   )}
                 </div>
                 {drilldown.xeroLink && (
@@ -189,7 +261,7 @@ export default function FinanceDashboard({ user }) {
                 setDrilldown({
                   title: '📥 Invoices Outstanding',
                   description: 'Customer invoices not yet paid.',
-                  type: 'accounts',
+                  type: 'invoices',
                   items: data.invoices,
                   xeroLink: 'https://go.xero.com/app/AccountsReceivable/ViewInvoicesList',
                 })
@@ -206,7 +278,7 @@ export default function FinanceDashboard({ user }) {
                 setDrilldown({
                   title: '📤 Bills Payable',
                   description: 'Supplier bills awaiting payment.',
-                  type: 'accounts',
+                  type: 'invoices',
                   items: data.payments,
                   xeroLink: 'https://go.xero.com/app/AccountsPayable/ViewPayablesList',
                 })
@@ -223,7 +295,7 @@ export default function FinanceDashboard({ user }) {
                 setDrilldown({
                   title: '💳 Bank Transactions',
                   description: 'Recent transactions across all bank accounts.',
-                  type: 'accounts',
+                  type: 'transactions',
                   items: data.bankTransactions,
                   xeroLink: 'https://go.xero.com/app/Settings/Bank',
                 })
