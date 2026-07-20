@@ -27,36 +27,73 @@ async function fetchWithRetry(accessToken, tenantId, endpoint, params = {}) {
   }
 }
 
+// Xero Reports API nests rows inside Sections (Row.Rows). Flatten so we can
+// scan every Row/SummaryRow by its label regardless of nesting depth.
+function flattenReportRows(rows = []) {
+  const flat = [];
+  rows.forEach((row) => {
+    if (row.Rows) flat.push(...flattenReportRows(row.Rows));
+    else flat.push(row);
+  });
+  return flat;
+}
+
+function findRowValue(flatRows, labelMatchers) {
+  const row = flatRows.find((r) => {
+    const label = r.Cells?.[0]?.Value || '';
+    return labelMatchers.some((m) => label.toLowerCase().includes(m));
+  });
+  const raw = row?.Cells?.[1]?.Value;
+  return raw ? parseFloat(raw) || 0 : 0;
+}
+
 async function fetchFinancialData(accessToken, tenantId) {
   const data = {};
 
-  // Bank accounts and cash
+  // Bank accounts - list of accounts (name/code/currency) has no balance field;
+  // actual balances come from the BankSummary report below.
   try {
     const accountsRes = await fetchWithRetry(accessToken, tenantId, 'Accounts', { where: 'Type=="BANK"' });
-    data.bankAccounts = (accountsRes.data.Accounts || []).map((acc) => {
-      // Xero returns balance in CurrentBalance field, handle both number and decimal formats
-      const balance = typeof acc.CurrentBalance === 'number' ? acc.CurrentBalance : parseFloat(acc.CurrentBalance) || 0;
-      return {
-        name: acc.Name,
-        code: acc.Code,
-        balance,
-        currency: acc.CurrencyCode,
-      };
-    });
-    data.totalCash = data.bankAccounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
+    data.bankAccounts = (accountsRes.data.Accounts || []).map((acc) => ({
+      name: acc.Name,
+      code: acc.Code,
+      balance: 0,
+      currency: acc.CurrencyCode,
+    }));
   } catch (err) {
     console.error('Bank accounts error:', err.response?.status);
     data.bankAccounts = [];
+  }
+
+  // Bank Summary report - the only endpoint that returns actual closing balances
+  try {
+    const bankSummaryRes = await fetchWithRetry(accessToken, tenantId, 'Reports/BankSummary');
+    const report = bankSummaryRes.data.Reports?.[0];
+    const flatRows = flattenReportRows(report?.Rows || []);
+
+    const balanceByName = {};
+    flatRows.forEach((row) => {
+      const name = row.Cells?.[0]?.Value;
+      const closingCell = row.Cells?.[row.Cells.length - 1];
+      if (name && closingCell?.Value !== undefined) {
+        const balance = parseFloat(closingCell.Value);
+        if (!isNaN(balance)) balanceByName[name] = balance;
+      }
+    });
+
+    data.bankAccounts = data.bankAccounts.map((acc) => ({
+      ...acc,
+      balance: balanceByName[acc.name] ?? 0,
+    }));
+    data.totalCash = data.bankAccounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
+  } catch (err) {
+    console.error('Bank summary error:', err.response?.status, err.response?.data?.Detail);
     data.totalCash = 0;
   }
 
   // Invoices (accounts receivable) - get all invoices and filter in code
   try {
     const invoicesRes = await fetchWithRetry(accessToken, tenantId, 'Invoices');
-    const sampleInvoice = (invoicesRes.data.Invoices || [])[0];
-    if (sampleInvoice) {
-      console.log('Xero invoice sample:', { DueDate: sampleInvoice.DueDate, type: typeof sampleInvoice.DueDate });
-    }
     data.invoices = (invoicesRes.data.Invoices || [])
       .filter((inv) => inv.Type === 'ACCREC' && inv.Status === 'AUTHORISED')
       .map((inv) => {
@@ -87,10 +124,6 @@ async function fetchFinancialData(accessToken, tenantId) {
   // Bill payments (accounts payable) - get all invoices and filter in code
   try {
     const billsRes = await fetchWithRetry(accessToken, tenantId, 'Invoices');
-    const sampleBill = (billsRes.data.Invoices || []).find((b) => b.Type === 'ACCPAY');
-    if (sampleBill) {
-      console.log('Xero bill sample:', { DueDate: sampleBill.DueDate, type: typeof sampleBill.DueDate });
-    }
     data.payments = (billsRes.data.Invoices || [])
       .filter((bill) => bill.Type === 'ACCPAY' && bill.Status === 'AUTHORISED')
       .map((bill) => {
@@ -145,68 +178,39 @@ async function fetchFinancialData(accessToken, tenantId) {
     data.bankTransactions = [];
   }
 
-  // P&L Report
+  // P&L Report - Xero nests real data under data.Reports[0].Rows, with
+  // sections (Income, Less Operating Expenses, ...) each containing a
+  // SummaryRow labelled "Total X", plus a final top-level "Net Profit" row.
   try {
     const plRes = await fetchWithRetry(accessToken, tenantId, 'Reports/ProfitAndLoss');
-    const rows = plRes.data.Rows || [];
+    const report = plRes.data.Reports?.[0];
+    const flatRows = flattenReportRows(report?.Rows || []);
 
-    let revenue = 0, expenses = 0;
-    rows.forEach((row) => {
-      if (row.RowType === 'SummaryRow') {
-        if (row.Cells && row.Cells[0]) {
-          const value = row.Cells[0].Value;
-          if (value) {
-            const numValue = parseFloat(value) || 0;
-            if (row.Cells[0].Attributes && row.Cells[0].Attributes[0]) {
-              const attr = row.Cells[0].Attributes[0].Value;
-              if (attr.includes('Revenue')) revenue = numValue;
-              else if (attr.includes('Expense')) expenses = numValue;
-            }
-          }
-        }
-      }
-    });
+    const revenue = findRowValue(flatRows, ['total income', 'total revenue']);
+    const expenses = findRowValue(flatRows, ['total operating expenses', 'total expenses', 'total cost of sales']);
+    const netIncome = findRowValue(flatRows, ['net profit', 'net income']);
 
     data.revenue = revenue;
     data.expenses = expenses;
-    data.netIncome = revenue - expenses;
-    data.profitAndLoss = rows;
+    data.netIncome = netIncome || revenue - expenses;
   } catch (err) {
-    console.error('P&L error:', err.response?.status);
-    data.profitAndLoss = null;
+    console.error('P&L error:', err.response?.status, err.response?.data?.Detail);
     data.revenue = 0;
     data.expenses = 0;
     data.netIncome = 0;
   }
 
-  // Balance Sheet Report
+  // Balance Sheet Report - same nested Section/SummaryRow shape as P&L.
   try {
     const bsRes = await fetchWithRetry(accessToken, tenantId, 'Reports/BalanceSheet');
-    const rows = bsRes.data.Rows || [];
+    const report = bsRes.data.Reports?.[0];
+    const flatRows = flattenReportRows(report?.Rows || []);
 
-    let assets = 0, liabilities = 0, equity = 0;
-    rows.forEach((row) => {
-      if (row.RowType === 'SummaryRow' && row.Cells && row.Cells[0]) {
-        const value = row.Cells[0].Value;
-        if (value) {
-          const numValue = parseFloat(value) || 0;
-          if (row.Cells[0].Attributes && row.Cells[0].Attributes[0]) {
-            const attr = row.Cells[0].Attributes[0].Value;
-            if (attr.includes('Asset')) assets = numValue;
-            else if (attr.includes('Liability')) liabilities = numValue;
-            else if (attr.includes('Equity')) equity = numValue;
-          }
-        }
-      }
-    });
-
-    data.totalAssets = assets;
-    data.totalLiabilities = liabilities;
-    data.totalEquity = equity;
-    data.balanceSheet = rows;
+    data.totalAssets = findRowValue(flatRows, ['total assets']);
+    data.totalLiabilities = findRowValue(flatRows, ['total liabilities']);
+    data.totalEquity = findRowValue(flatRows, ['total equity', 'net assets']);
   } catch (err) {
-    console.error('Balance Sheet error:', err.response?.status);
-    data.balanceSheet = null;
+    console.error('Balance Sheet error:', err.response?.status, err.response?.data?.Detail);
     data.totalAssets = 0;
     data.totalLiabilities = 0;
     data.totalEquity = 0;
