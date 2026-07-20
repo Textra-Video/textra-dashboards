@@ -33,17 +33,16 @@ async function fetchFinancialData(accessToken, tenantId) {
   // Bank accounts and cash
   try {
     const accountsRes = await fetchWithRetry(accessToken, tenantId, 'Accounts', { where: 'Type=="BANK"' });
-    const sampleAccount = (accountsRes.data.Accounts || [])[0];
-    if (sampleAccount) {
-      console.log('[Xero Bank Account] Fields available:', Object.keys(sampleAccount));
-      console.log('[Xero Bank Account] Sample:', { name: sampleAccount.Name, code: sampleAccount.Code, ...Object.fromEntries(Object.entries(sampleAccount).filter(([k]) => k.toLowerCase().includes('balance'))) });
-    }
-    data.bankAccounts = (accountsRes.data.Accounts || []).map((acc) => ({
-      name: acc.Name,
-      code: acc.Code,
-      balance: 0, // TODO: extract correct balance field
-      currency: acc.CurrencyCode,
-    }));
+    data.bankAccounts = (accountsRes.data.Accounts || []).map((acc) => {
+      // Xero returns balance in CurrentBalance field, handle both number and decimal formats
+      const balance = typeof acc.CurrentBalance === 'number' ? acc.CurrentBalance : parseFloat(acc.CurrentBalance) || 0;
+      return {
+        name: acc.Name,
+        code: acc.Code,
+        balance,
+        currency: acc.CurrencyCode,
+      };
+    });
     data.totalCash = data.bankAccounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
   } catch (err) {
     console.error('Bank accounts error:', err.response?.status);
@@ -146,16 +145,72 @@ async function fetchFinancialData(accessToken, tenantId) {
     data.bankTransactions = [];
   }
 
-  // P&L and Balance Sheet - skip for now (reports need special XML parsing)
-  data.profitAndLoss = null;
-  data.revenue = 0;
-  data.expenses = 0;
-  data.netIncome = 0;
+  // P&L Report
+  try {
+    const plRes = await fetchWithRetry(accessToken, tenantId, 'Reports/ProfitAndLoss');
+    const rows = plRes.data.Rows || [];
 
-  data.balanceSheet = null;
-  data.totalAssets = 0;
-  data.totalLiabilities = 0;
-  data.totalEquity = 0;
+    let revenue = 0, expenses = 0;
+    rows.forEach((row) => {
+      if (row.RowType === 'SummaryRow') {
+        if (row.Cells && row.Cells[0]) {
+          const value = row.Cells[0].Value;
+          if (value) {
+            const numValue = parseFloat(value) || 0;
+            if (row.Cells[0].Attributes && row.Cells[0].Attributes[0]) {
+              const attr = row.Cells[0].Attributes[0].Value;
+              if (attr.includes('Revenue')) revenue = numValue;
+              else if (attr.includes('Expense')) expenses = numValue;
+            }
+          }
+        }
+      }
+    });
+
+    data.revenue = revenue;
+    data.expenses = expenses;
+    data.netIncome = revenue - expenses;
+    data.profitAndLoss = rows;
+  } catch (err) {
+    console.error('P&L error:', err.response?.status);
+    data.profitAndLoss = null;
+    data.revenue = 0;
+    data.expenses = 0;
+    data.netIncome = 0;
+  }
+
+  // Balance Sheet Report
+  try {
+    const bsRes = await fetchWithRetry(accessToken, tenantId, 'Reports/BalanceSheet');
+    const rows = bsRes.data.Rows || [];
+
+    let assets = 0, liabilities = 0, equity = 0;
+    rows.forEach((row) => {
+      if (row.RowType === 'SummaryRow' && row.Cells && row.Cells[0]) {
+        const value = row.Cells[0].Value;
+        if (value) {
+          const numValue = parseFloat(value) || 0;
+          if (row.Cells[0].Attributes && row.Cells[0].Attributes[0]) {
+            const attr = row.Cells[0].Attributes[0].Value;
+            if (attr.includes('Asset')) assets = numValue;
+            else if (attr.includes('Liability')) liabilities = numValue;
+            else if (attr.includes('Equity')) equity = numValue;
+          }
+        }
+      }
+    });
+
+    data.totalAssets = assets;
+    data.totalLiabilities = liabilities;
+    data.totalEquity = equity;
+    data.balanceSheet = rows;
+  } catch (err) {
+    console.error('Balance Sheet error:', err.response?.status);
+    data.balanceSheet = null;
+    data.totalAssets = 0;
+    data.totalLiabilities = 0;
+    data.totalEquity = 0;
+  }
 
   return data;
 }
