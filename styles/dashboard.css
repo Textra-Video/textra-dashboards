@@ -858,13 +858,17 @@ body {
 
 .modal-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(15, 20, 40, 0.55);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 20, 40, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 20px;
   z-index: 100;
+  overflow-y: auto;
 }
 
 .modal-panel {
@@ -872,12 +876,12 @@ body {
   border-radius: 12px;
   padding: 32px;
   width: 100%;
-  max-width: 900px;
-  max-height: 85vh;
+  max-width: 1000px;
+  max-height: calc(100vh - 60px);
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  opacity: 1;
-  z-index: 101;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+  margin: auto;
 }
 
 .modal-header {
@@ -923,24 +927,29 @@ body {
 .drilldown-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 13px;
   table-layout: auto;
+  background: white;
 }
 
 .drilldown-table thead {
   background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--navy);
   position: sticky;
   top: 0;
+  z-index: 10;
 }
 
 .drilldown-table th {
-  padding: 12px;
+  padding: 14px 12px;
   text-align: left;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--navy);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   border-right: 1px solid var(--border);
-  word-break: break-word;
+  white-space: nowrap;
 }
 
 .drilldown-table th:last-child {
@@ -948,15 +957,19 @@ body {
 }
 
 .drilldown-table td {
-  padding: 12px;
+  padding: 14px 12px;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   color: var(--ink);
-  word-break: break-word;
+  vertical-align: middle;
 }
 
 .drilldown-table td:last-child {
   border-right: none;
+}
+
+.drilldown-table tbody tr:hover {
+  background: rgba(102, 188, 173, 0.05);
 }
 
 .drilldown-table tr:last-child td {
