@@ -6,6 +6,20 @@ function fmtCurrency(value) {
   return `£${(value / 1000).toFixed(1)}k`;
 }
 
+function fmtDate(dateValue) {
+  if (!dateValue) return '—';
+  // Handle ISO strings like "2026-01-26" by parsing components directly
+  // to avoid timezone interpretation issues
+  const match = String(dateValue).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toLocaleDateString('en-GB');
+  }
+  // Fallback for other formats
+  const parsed = new Date(dateValue);
+  return isNaN(parsed) ? '—' : parsed.toLocaleDateString('en-GB');
+}
+
 export default function FinanceDashboard({ user }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -138,7 +152,7 @@ export default function FinanceDashboard({ user }) {
                               <td>{inv.invoiceNumber}</td>
                               <td>{inv.contact}</td>
                               <td className="amount">{fmtCurrency(inv.amount)}</td>
-                              <td>{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString('en-GB') : '—'}</td>
+                              <td>{fmtDate(inv.dueDate)}</td>
                               <td>{inv.status}</td>
                             </tr>
                           ))
@@ -166,7 +180,7 @@ export default function FinanceDashboard({ user }) {
                         {drilldown.items?.length > 0 ? (
                           drilldown.items.map((tx, i) => (
                             <tr key={i}>
-                              <td>{tx.date ? new Date(tx.date).toLocaleDateString('en-GB') : '—'}</td>
+                              <td>{fmtDate(tx.date)}</td>
                               <td>{tx.description}</td>
                               <td className="amount">{fmtCurrency(tx.amount)}</td>
                               <td>{tx.type}</td>
