@@ -49,7 +49,7 @@ async function fetchFinancialData(accessToken, tenantId) {
   // Invoices (accounts receivable)
   try {
     const invoicesRes = await fetchWithRetry(accessToken, tenantId, 'Invoices', {
-      where: 'Status=="AUTHORISED" || Status=="SUBMITTED"',
+      where: 'Type=="ACCREC"&&Status=="AUTHORISED"',
     });
     data.invoices = (invoicesRes.data.Invoices || []).map((inv) => ({
       invoiceNumber: inv.InvoiceNumber,
@@ -60,7 +60,7 @@ async function fetchFinancialData(accessToken, tenantId) {
     }));
     data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
   } catch (err) {
-    console.error('Invoices error:', err.response?.status);
+    console.error('Invoices error:', err.response?.status, err.response?.data?.Detail);
     data.invoices = [];
     data.totalReceivable = 0;
   }
@@ -68,7 +68,7 @@ async function fetchFinancialData(accessToken, tenantId) {
   // Bill payments (accounts payable)
   try {
     const billsRes = await fetchWithRetry(accessToken, tenantId, 'Invoices', {
-      where: 'Type=="ACCRECPAYABLE" && Status=="AUTHORISED"',
+      where: 'Type=="ACCPAY"&&Status=="AUTHORISED"',
     });
     data.payments = (billsRes.data.Invoices || []).map((bill) => ({
       invoiceNumber: bill.InvoiceNumber,
@@ -79,7 +79,7 @@ async function fetchFinancialData(accessToken, tenantId) {
     }));
     data.totalPayable = data.payments.reduce((sum, bill) => sum + (bill.amount || 0), 0);
   } catch (err) {
-    console.error('Bills error:', err.response?.status);
+    console.error('Bills error:', err.response?.status, err.response?.data?.Detail);
     data.payments = [];
     data.totalPayable = 0;
   }
