@@ -9,13 +9,17 @@ function fmtCurrency(value) {
 function fmtDate(dateValue) {
   if (!dateValue) return '—';
   const dateStr = String(dateValue);
+  console.log('[fmtDate DEBUG] Testing string:', dateStr);
 
   // Handle Microsoft JSON date format: /Date(1782172800000+0000)/
   const msMatch = dateStr.match(/^\/Date\((\d+)/);
+  console.log('[fmtDate DEBUG] MS regex match:', msMatch);
   if (msMatch) {
     const timestamp = parseInt(msMatch[1]);
     const d = new Date(timestamp);
-    return d.toLocaleDateString('en-GB');
+    const formatted = d.toLocaleDateString('en-GB');
+    console.log('[fmtDate DEBUG] MS format parsed:', { timestamp, date: d.toString(), formatted });
+    return formatted;
   }
 
   // Handle ISO strings like "2026-01-26"
@@ -23,12 +27,16 @@ function fmtDate(dateValue) {
   if (isoMatch) {
     const [, year, month, day] = isoMatch;
     const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    return d.toLocaleDateString('en-GB');
+    const formatted = d.toLocaleDateString('en-GB');
+    console.log('[fmtDate DEBUG] ISO format parsed:', { year, month, day, formatted });
+    return formatted;
   }
 
   // Fallback for other formats
   const parsed = new Date(dateValue);
-  return isNaN(parsed) ? '—' : parsed.toLocaleDateString('en-GB');
+  const formatted = isNaN(parsed) ? '—' : parsed.toLocaleDateString('en-GB');
+  console.log('[fmtDate DEBUG] Fallback:', { dateValue, parsed, formatted });
+  return formatted;
 }
 
 export default function FinanceDashboard({ user }) {
