@@ -146,9 +146,7 @@ export default function FinanceDashboard({ user }) {
                       </thead>
                       <tbody>
                         {drilldown.items?.length > 0 ? (
-                          drilldown.items.map((inv, i) => {
-                            if (i === 0) console.log('[Invoice data]', { dueDate: inv.dueDate, type: typeof inv.dueDate });
-                            return (
+                          drilldown.items.map((inv, i) => (
                             <tr key={i}>
                               <td>{inv.invoiceNumber}</td>
                               <td>{inv.contact}</td>
@@ -156,8 +154,7 @@ export default function FinanceDashboard({ user }) {
                               <td>{fmtDate(inv.dueDate)}</td>
                               <td>{inv.status}</td>
                             </tr>
-                          );
-                          })
+                          ))
                         ) : (
                           <tr>
                             <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
@@ -273,16 +270,15 @@ export default function FinanceDashboard({ user }) {
 
             <button
               className="metric-card metric-card-clickable"
-              onClick={() => {
-                console.log('[AR Click] Invoices:', data.invoices);
+              onClick={() =>
                 setDrilldown({
                   title: '📥 Invoices Outstanding',
                   description: 'Customer invoices not yet paid.',
                   type: 'invoices',
                   items: data.invoices,
                   xeroLink: 'https://go.xero.com/app/AccountsReceivable/ViewInvoicesList',
-                });
-              }}
+                })
+              }
             >
               <div className="metric-label">📥 Accounts Receivable</div>
               <div className="metric-value">{fmtCurrency(data.totalReceivable)}</div>

@@ -911,6 +911,66 @@ body {
   margin-bottom: 16px;
 }
 
+.drilldown-data {
+  margin-bottom: 16px;
+  overflow-x: auto;
+}
+
+.drilldown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.drilldown-table thead {
+  background: var(--bg);
+  border-bottom: 2px solid var(--border);
+}
+
+.drilldown-table th {
+  padding: 10px 8px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--navy);
+  white-space: nowrap;
+}
+
+.drilldown-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink);
+}
+
+.drilldown-table tr:last-child td {
+  border-bottom: none;
+}
+
+.drilldown-table .amount {
+  text-align: right;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.drilldown-table .code {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.view-in-xero-link {
+  display: inline-block;
+  color: var(--blue);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 8px;
+  transition: color 0.2s ease;
+}
+
+.view-in-xero-link:hover {
+  color: var(--navy);
+}
+
 @media (max-width: 768px) {
   .dashboard-header {
     flex-direction: column;
