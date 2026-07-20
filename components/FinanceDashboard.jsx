@@ -138,7 +138,7 @@ export default function FinanceDashboard({ user }) {
                               <td>{inv.invoiceNumber}</td>
                               <td>{inv.contact}</td>
                               <td className="amount">{fmtCurrency(inv.amount)}</td>
-                              <td>{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : '—'}</td>
+                              <td>{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString('en-GB') : '—'}</td>
                               <td>{inv.status}</td>
                             </tr>
                           ))
@@ -166,7 +166,7 @@ export default function FinanceDashboard({ user }) {
                         {drilldown.items?.length > 0 ? (
                           drilldown.items.map((tx, i) => (
                             <tr key={i}>
-                              <td>{tx.date ? new Date(tx.date).toLocaleDateString() : '—'}</td>
+                              <td>{tx.date ? new Date(tx.date).toLocaleDateString('en-GB') : '—'}</td>
                               <td>{tx.description}</td>
                               <td className="amount">{fmtCurrency(tx.amount)}</td>
                               <td>{tx.type}</td>
