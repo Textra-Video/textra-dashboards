@@ -17,7 +17,7 @@ export default async function handler(req, res) {
           grant_type: 'authorization_code',
           client_id: process.env.XERO_CLIENT_ID,
           client_secret: process.env.XERO_CLIENT_SECRET,
-          redirect_uri: process.env.XERO_REDIRECT_URI,
+          redirect_uri: process.env.NEXT_PUBLIC_XERO_REDIRECT_URI,
           code,
         },
       }
