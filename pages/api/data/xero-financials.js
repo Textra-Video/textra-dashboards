@@ -100,35 +100,16 @@ async function fetchFinancialData(accessToken, tenantId) {
     data.bankTransactions = [];
   }
 
-  // P&L and Balance Sheet (reports return XML/complex structure)
-  try {
-    const plRes = await fetchWithRetry(accessToken, tenantId, 'Reports/ProfitAndLoss');
-    data.profitAndLoss = plRes.data;
-    // For now, set placeholder values - these would need proper XML parsing
-    data.revenue = 0;
-    data.expenses = 0;
-    data.netIncome = 0;
-  } catch (err) {
-    console.error('P&L report error:', err.response?.status);
-    data.profitAndLoss = null;
-    data.revenue = 0;
-    data.expenses = 0;
-    data.netIncome = 0;
-  }
+  // P&L and Balance Sheet - skip for now (reports need special XML parsing)
+  data.profitAndLoss = null;
+  data.revenue = 0;
+  data.expenses = 0;
+  data.netIncome = 0;
 
-  try {
-    const bsRes = await fetchWithRetry(accessToken, tenantId, 'Reports/BalanceSheet');
-    data.balanceSheet = bsRes.data;
-    data.totalAssets = 0;
-    data.totalLiabilities = 0;
-    data.totalEquity = 0;
-  } catch (err) {
-    console.error('Balance sheet error:', err.response?.status);
-    data.balanceSheet = null;
-    data.totalAssets = 0;
-    data.totalLiabilities = 0;
-    data.totalEquity = 0;
-  }
+  data.balanceSheet = null;
+  data.totalAssets = 0;
+  data.totalLiabilities = 0;
+  data.totalEquity = 0;
 
   return data;
 }
