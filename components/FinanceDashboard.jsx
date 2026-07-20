@@ -146,7 +146,9 @@ export default function FinanceDashboard({ user }) {
                       </thead>
                       <tbody>
                         {drilldown.items?.length > 0 ? (
-                          drilldown.items.map((inv, i) => (
+                          drilldown.items.map((inv, i) => {
+                            if (i === 0) console.log('[Invoice data]', { dueDate: inv.dueDate, type: typeof inv.dueDate });
+                            return (
                             <tr key={i}>
                               <td>{inv.invoiceNumber}</td>
                               <td>{inv.contact}</td>
@@ -154,7 +156,8 @@ export default function FinanceDashboard({ user }) {
                               <td>{fmtDate(inv.dueDate)}</td>
                               <td>{inv.status}</td>
                             </tr>
-                          ))
+                          );
+                          })
                         ) : (
                           <tr>
                             <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
