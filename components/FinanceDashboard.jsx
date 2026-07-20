@@ -8,16 +8,25 @@ function fmtCurrency(value) {
 
 function fmtDate(dateValue) {
   if (!dateValue) return '—';
+  const dateStr = String(dateValue);
+  console.log('[fmtDate] Input:', { dateValue, dateStr, type: typeof dateValue });
+
   // Handle ISO strings like "2026-01-26" by parsing components directly
-  // to avoid timezone interpretation issues
-  const match = String(dateValue).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (match) {
     const [, year, month, day] = match;
-    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toLocaleDateString('en-GB');
+    const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    const formatted = d.toLocaleDateString('en-GB');
+    console.log('[fmtDate] ISO parse:', { year, month, day, date: d, formatted });
+    return formatted;
   }
+
   // Fallback for other formats
   const parsed = new Date(dateValue);
-  return isNaN(parsed) ? '—' : parsed.toLocaleDateString('en-GB');
+  const isValid = !isNaN(parsed);
+  const formatted = isValid ? parsed.toLocaleDateString('en-GB') : '—';
+  console.log('[fmtDate] Fallback:', { parsed, isValid, formatted });
+  return formatted;
 }
 
 export default function FinanceDashboard({ user }) {
