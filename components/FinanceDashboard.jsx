@@ -273,15 +273,16 @@ export default function FinanceDashboard({ user }) {
 
             <button
               className="metric-card metric-card-clickable"
-              onClick={() =>
+              onClick={() => {
+                console.log('[AR Click] Invoices:', data.invoices);
                 setDrilldown({
                   title: '📥 Invoices Outstanding',
                   description: 'Customer invoices not yet paid.',
                   type: 'invoices',
                   items: data.invoices,
                   xeroLink: 'https://go.xero.com/app/AccountsReceivable/ViewInvoicesList',
-                })
-              }
+                });
+              }}
             >
               <div className="metric-label">📥 Accounts Receivable</div>
               <div className="metric-value">{fmtCurrency(data.totalReceivable)}</div>
