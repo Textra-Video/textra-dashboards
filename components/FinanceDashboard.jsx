@@ -53,17 +53,14 @@ export default function FinanceDashboard({ user }) {
     fetchFinancials();
   }, []);
 
+  const xeroConnectUrl = `https://login.xero.com/identity/connect/authorize?response_type=code&client_id=${process.env.NEXT_PUBLIC_XERO_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_XERO_REDIRECT_URI)}&scope=offline_access%20accounting.invoices%20accounting.payments%20accounting.banktransactions%20accounting.reports.read%20accounting.reports.aged.read%20accounting.reports.balancesheet.read%20accounting.reports.profitandloss.read%20accounting.contacts%20accounting.settings.read`;
+
   if (notConnected) {
     return (
       <div className="dashboard-content">
         <div className="connect-prompt">
           <p>Please authenticate with Xero to view financial data</p>
-          <button
-            className="connect-button"
-            onClick={() => {
-              window.location.href = `https://login.xero.com/identity/connect/authorize?response_type=code&client_id=${process.env.NEXT_PUBLIC_XERO_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_XERO_REDIRECT_URI)}&scope=offline_access%20accounting.invoices%20accounting.payments%20accounting.banktransactions%20accounting.reports.aged.read%20accounting.reports.balancesheet.read%20accounting.reports.profitandloss.read%20accounting.contacts%20accounting.settings.read`;
-            }}
-          >
+          <button className="connect-button" onClick={() => { window.location.href = xeroConnectUrl; }}>
             Connect Xero
           </button>
         </div>
@@ -86,6 +83,12 @@ export default function FinanceDashboard({ user }) {
       <div className="dashboard-toolbar">
         <div>
           {lastUpdated && <p className="last-updated">Last updated: {lastUpdated}</p>}
+          <a
+            href={xeroConnectUrl}
+            style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'underline' }}
+          >
+            Reconnect Xero (grants new permissions)
+          </a>
         </div>
         <button className="refresh-button" onClick={fetchFinancials} disabled={loading}>
           {loading ? 'Loading...' : 'Refresh Data'}
