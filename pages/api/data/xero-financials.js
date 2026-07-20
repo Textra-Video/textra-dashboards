@@ -49,6 +49,10 @@ async function fetchFinancialData(accessToken, tenantId) {
   // Invoices (accounts receivable) - get all invoices and filter in code
   try {
     const invoicesRes = await fetchWithRetry(accessToken, tenantId, 'Invoices');
+    const sampleInvoice = (invoicesRes.data.Invoices || [])[0];
+    if (sampleInvoice) {
+      console.log('Xero invoice sample:', { DueDate: sampleInvoice.DueDate, type: typeof sampleInvoice.DueDate });
+    }
     data.invoices = (invoicesRes.data.Invoices || [])
       .filter((inv) => inv.Type === 'ACCREC' && inv.Status === 'AUTHORISED')
       .map((inv) => ({
@@ -68,6 +72,10 @@ async function fetchFinancialData(accessToken, tenantId) {
   // Bill payments (accounts payable) - get all invoices and filter in code
   try {
     const billsRes = await fetchWithRetry(accessToken, tenantId, 'Invoices');
+    const sampleBill = (billsRes.data.Invoices || []).find((b) => b.Type === 'ACCPAY');
+    if (sampleBill) {
+      console.log('Xero bill sample:', { DueDate: sampleBill.DueDate, type: typeof sampleBill.DueDate });
+    }
     data.payments = (billsRes.data.Invoices || [])
       .filter((bill) => bill.Type === 'ACCPAY' && bill.Status === 'AUTHORISED')
       .map((bill) => ({
