@@ -867,10 +867,11 @@ body {
   z-index: 1000;
 }
 
-.modal-panel {
+.modal-content {
+  position: relative;
   background: white;
   border-radius: 8px;
-  padding: 24px;
+  padding: 32px;
   width: 100%;
   max-width: 800px;
   min-width: 320px;
@@ -879,27 +880,25 @@ body {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 8px;
-}
-
-.modal-header h3 {
-  font-size: 18px;
+.modal-content h2 {
+  font-size: 20px;
   color: var(--navy);
   font-weight: 700;
+  margin-bottom: 4px;
+  padding-right: 32px;
 }
 
 .modal-close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1;
   color: var(--muted);
   cursor: pointer;
-  padding: 0 0 0 12px;
+  padding: 4px;
 }
 
 .modal-close:hover {
