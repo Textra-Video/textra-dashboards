@@ -53,6 +53,21 @@ export default function FinanceDashboard({ user }) {
     fetchFinancials();
   }, []);
 
+  // Debug: log what data we receive
+  useEffect(() => {
+    if (data) {
+      console.log('[FinanceDashboard Data]', {
+        totalCash: data.totalCash,
+        netIncome: data.netIncome,
+        totalAssets: data.totalAssets,
+        bankAccounts: data.bankAccounts?.length,
+        invoices: data.invoices?.length,
+        payments: data.payments?.length,
+        bankTransactions: data.bankTransactions?.length,
+      });
+    }
+  }, [data]);
+
   if (notConnected) {
     return (
       <div className="dashboard-content">
