@@ -196,6 +196,7 @@ export default function FinanceDashboard({ user }) {
                         <tr>
                           <th>Date</th>
                           <th>Description</th>
+                          <th>Contact / Payee</th>
                           <th>Amount</th>
                           <th>Type</th>
                         </tr>
@@ -206,13 +207,14 @@ export default function FinanceDashboard({ user }) {
                             <tr key={i}>
                               <td>{fmtDate(tx.date)}</td>
                               <td>{tx.description}</td>
+                              <td style={{ fontSize: '12px', color: 'var(--muted)' }}>{tx.contact || '—'}</td>
                               <td className="amount">{fmtTransactionAmount(tx.amount)}</td>
                               <td>{tx.type}</td>
                             </tr>
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                            <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
                               No transactions to display
                             </td>
                           </tr>

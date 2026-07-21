@@ -173,9 +173,13 @@ async function fetchFinancialData(accessToken, tenantId) {
           bankTransactionId: tx.BankTransactionID,
           accountId: tx.BankAccount?.AccountID,
           date,
-          description: tx.LineItems?.[0]?.Description || tx.Reference || tx.Description || 'Transaction',
+          // Try multiple sources for description: line item, reference, or contact
+          description: tx.LineItems?.[0]?.Description || tx.Reference || tx.Description || tx.Contact?.Name || 'Transaction',
+          contact: tx.Contact?.Name || tx.LineItems?.[0]?.AccountCode || null,
           amount: tx.Total || 0,
           type: tx.Type,
+          status: tx.Status,
+          lineItemsCount: tx.LineItems?.length || 0,
         };
       });
   } catch (err) {
