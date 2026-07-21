@@ -123,14 +123,19 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
   try {
     const invoicesRes = await fetchWithRetry(accessToken, tenantId, 'Invoices');
     let allInvoices = invoicesRes.data.Invoices || [];
+    console.log(`[Xero] Total invoices from API: ${allInvoices.length}`);
 
-    // Also fetch credit notes to subtract from totalIncome
-    const creditNotesRes = await fetchWithRetry(accessToken, tenantId, 'CreditNotes');
-    const creditNotes = creditNotesRes.data.CreditNotes || [];
-    console.log(`[Xero] Total invoices from API: ${allInvoices.length}, Credit notes: ${creditNotes.length}`);
-
-    // Add credit notes to allInvoices with Type='ACCRECCREDNOTE' for processing
-    allInvoices = [...allInvoices, ...creditNotes.map(cn => ({ ...cn, Type: 'ACCRECCREDNOTE' }))];
+    // Try to fetch credit notes to subtract from totalIncome
+    let creditNotes = [];
+    try {
+      const creditNotesRes = await fetchWithRetry(accessToken, tenantId, 'CreditNotes');
+      creditNotes = creditNotesRes.data.CreditNotes || [];
+      console.log(`[Xero] Credit notes fetched: ${creditNotes.length}`);
+      // Add credit notes to allInvoices with Type='ACCRECCREDNOTE' for processing
+      allInvoices = [...allInvoices, ...creditNotes.map(cn => ({ ...cn, Type: 'ACCRECCREDNOTE' }))];
+    } catch (cnErr) {
+      console.log('[Xero] CreditNotes endpoint not available, skipping credit note fetch');
+    }
 
     // Log ALL invoices with details
     const allInvoicesSummary = allInvoices.map(i => ({
