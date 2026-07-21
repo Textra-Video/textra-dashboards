@@ -204,8 +204,14 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
       console.log(`[Xero] Could not fetch credit notes: ${err.message}`);
     }
 
-    totalIncome -= creditNotesTotal;
-    data.totalIncome = totalIncome;
+    // Only deduct credit notes if we have revenue invoices in this period
+    // This prevents negative revenue when credit notes exist but no invoices do
+    if (incomeInvoices.length > 0) {
+      totalIncome -= creditNotesTotal;
+    }
+
+    // Ensure totalIncome is never negative
+    data.totalIncome = Math.max(0, totalIncome);
 
     console.log('[Xero] Income invoices included in totalIncome:');
     incomeInvoices.forEach(inv => {
