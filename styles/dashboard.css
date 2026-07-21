@@ -224,7 +224,8 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  min-height: 140px;
+  align-items: stretch;
+  min-height: 160px;
   height: 100%;
   box-sizing: border-box;
 }
@@ -261,6 +262,7 @@ body {
   text-transform: uppercase;
   opacity: 0.85;
   margin-bottom: 8px;
+  height: 20px;
 }
 
 .metric-value {
