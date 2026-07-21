@@ -174,13 +174,21 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
 
     // Calculate totalIncome from ALL ACCREC invoices (excluding credit notes)
-    // Credit notes in Xero have negative amounts, so we exclude them by checking for positive amounts
+    // Credit notes in Xero may have negative amounts or be identifiable by invoice number starting with 'CN'
     const allAcrecInvoices = allInvoices.filter(inv =>
       inv.Type === 'ACCREC' &&
-      (inv.Total || 0) > 0 && // Exclude credit notes (negative amounts)
+      (inv.Total || 0) !== 0 && // Exclude zero amounts
+      !inv.InvoiceNumber.startsWith('CN-') && // Exclude credit notes by invoice number
       isInvoiceInDateRange(inv, startDate, endDate)
     );
     data.totalIncome = allAcrecInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
+
+    // DEBUG: Log every invoice used in totalIncome calculation
+    console.log('[Xero] Invoices included in totalIncome calculation:');
+    allAcrecInvoices.forEach(inv => {
+      console.log(`  ${inv.InvoiceNumber}: £${inv.Total}`);
+    });
+    console.log(`[Xero] Total Income: £${data.totalIncome} from ${allAcrecInvoices.length} invoices`);
 
     // Debug: breakdown by status
     const acrecByStatus = {};
@@ -190,7 +198,7 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
       acrecByStatus[inv.Status].total += inv.Total || 0;
     });
     console.log('[Xero] ACCREC revenue by status:', acrecByStatus);
-    console.log(`[Xero] Total Income (ALL ACCREC invoices): £${data.totalIncome}, Outstanding (AUTHORISED): £${data.totalReceivable}, dateRange:`, { startDate, endDate });
+    console.log(`[Xero] Outstanding (AUTHORISED): £${data.totalReceivable}, dateRange:`, { startDate, endDate });
     console.log('[Xero] Invoice count: Total ACCREC=' + allAcrecInvoices.length + ', AUTHORISED=' + data.invoices.length);
   } catch (err) {
     console.error('Invoices error:', err.response?.status, err.response?.data?.Detail);
