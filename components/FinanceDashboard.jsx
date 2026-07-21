@@ -53,7 +53,7 @@ export default function FinanceDashboard({ user }) {
     let startDate, endDate;
 
     if (dateRange === 'since-incorporation') {
-      startDate = new Date(2025, 5, 1); // July 1, 2025
+      startDate = new Date(2025, 6, 15); // July 15, 2025
       endDate = today;
     } else if (dateRange === 'current-month') {
       startDate = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -154,7 +154,7 @@ export default function FinanceDashboard({ user }) {
               fontSize: '14px',
             }}
           >
-            <option value="since-incorporation">Since Incorporation (1 Jul 2025)</option>
+            <option value="since-incorporation">Since Incorporation (15 Jul 2025)</option>
             <option value="current-month">This Month</option>
             <option value="current-quarter">This Quarter</option>
             <option value="current-year">This Year</option>
