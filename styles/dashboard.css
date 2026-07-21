@@ -867,7 +867,8 @@ body {
   z-index: 1000;
 }
 
-.modal-content {
+.modal-content,
+.modal-panel {
   position: relative;
   background: white;
   border-radius: 8px;
@@ -888,10 +889,27 @@ body {
   padding-right: 32px;
 }
 
-.modal-close {
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.modal-header h3 {
+  font-size: 18px;
+  color: var(--navy);
+  font-weight: 700;
+}
+
+/* Bare <button class="modal-close"> sibling of an <h2> (Finance dashboard) */
+.modal-content > .modal-close {
   position: absolute;
   top: 20px;
   right: 24px;
+}
+
+.modal-close {
   background: none;
   border: none;
   font-size: 22px;
