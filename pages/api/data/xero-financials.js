@@ -195,19 +195,11 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     let totalIncome = incomeInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
 
     // Subtract credit notes from total income (net revenue after credits)
-    // First try from allInvoices if CreditNotes were fetched as ACCRECCREDNOTE type
     const creditNotes = allInvoices.filter(inv =>
       inv.Type === 'ACCRECCREDNOTE' &&
       isInvoiceInDateRange(inv, startDate, endDate)
     );
-    let creditNoteTotal = creditNotes.reduce((sum, cn) => sum + (cn.Total || 0), 0);
-
-    // If no credit notes found via API, use known credit note (CN-000026: £17,760)
-    // TODO: Replace with dynamic API fetch once CreditNotes endpoint is accessible
-    if (creditNoteTotal === 0 && startDate && new Date(startDate) <= new Date('2026-07-14')) {
-      creditNoteTotal = 17760; // CN-000026 dated 2026-07-14
-    }
-
+    const creditNoteTotal = creditNotes.reduce((sum, cn) => sum + (cn.Total || 0), 0);
     totalIncome -= creditNoteTotal;
     data.totalIncome = totalIncome;
 
