@@ -86,12 +86,9 @@ async function fetchFinancialData(accessToken, tenantId) {
       balance: balanceByName[acc.name] ?? 0,
     }));
     data.totalCash = data.bankAccounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
-    data._debugBankSummaryRawRows = flatRows;
-    data._debugBalanceByName = balanceByName;
   } catch (err) {
     console.error('Bank summary error:', err.response?.status, err.response?.data?.Detail);
     data.totalCash = 0;
-    data._debugBankSummaryError = { status: err.response?.status, detail: err.response?.data?.Detail || err.message };
   }
 
   // Invoices (accounts receivable) - get all invoices and filter in code
