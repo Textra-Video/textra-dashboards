@@ -335,13 +335,21 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     const report = plRes.data.Reports?.[0];
     const flatRows = flattenReportRows(report?.Rows || []);
 
-    const revenue = findRowValue(flatRows, ['total income', 'total revenue']);
-    const expenses = findRowValue(flatRows, ['total operating expenses', 'total expenses', 'total cost of sales']);
-    const netIncome = findRowValue(flatRows, ['net profit', 'net income']);
+    let revenue = findRowValue(flatRows, ['total income', 'total revenue']);
+    let expenses = findRowValue(flatRows, ['total operating expenses', 'total expenses', 'total cost of sales']);
+    let netIncome = findRowValue(flatRows, ['net profit', 'net income']);
+
+    // Floor revenue to 0 to prevent negative revenue when credit notes exceed invoices
+    revenue = Math.max(0, revenue);
+
+    // Recalculate netIncome if it wasn't found in the report
+    if (!netIncome) {
+      netIncome = revenue - expenses;
+    }
 
     data.revenue = revenue;
-    data.expenses = expenses;
-    data.netIncome = netIncome || revenue - expenses;
+    data.expenses = Math.max(0, expenses); // Also floor expenses
+    data.netIncome = netIncome;
     console.log('[Xero] P&L Report:', { revenue, expenses, netIncome, calculated: revenue - expenses });
   } catch (err) {
     console.error('P&L error:', err.response?.status, err.response?.data?.Detail);
