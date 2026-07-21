@@ -210,6 +210,7 @@ body {
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-auto-rows: 1fr;
   gap: 20px;
   margin-bottom: 8px;
   align-items: stretch;
