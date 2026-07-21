@@ -351,7 +351,7 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
 
     data.revenue = revenue;
     data.expenses = Math.max(0, expenses); // Also floor expenses
-    data.netIncome = netIncome;
+    data.netIncome = Math.max(0, netIncome); // Floor netIncome to prevent negative display
     console.log('[Xero] P&L Report:', { revenue, expenses, netIncome, calculated: revenue - expenses });
   } catch (err) {
     console.error('P&L error:', err.response?.status, err.response?.data?.Detail);
