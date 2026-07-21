@@ -47,6 +47,31 @@ function findRowValue(flatRows, labelMatchers) {
   return raw ? parseFloat(raw) || 0 : 0;
 }
 
+// Helper to parse invoice dates consistently
+function parseInvoiceDate(inv) {
+  if (inv.DateString) {
+    return new Date(inv.DateString);
+  } else if (inv.Date && typeof inv.Date === 'string') {
+    if (inv.Date.startsWith('/Date(')) {
+      const match = inv.Date.match(/^\/Date\((\d+)/);
+      return match ? new Date(parseInt(match[1])) : new Date(inv.Date);
+    } else {
+      return new Date(inv.Date);
+    }
+  } else {
+    return new Date(inv.Date);
+  }
+}
+
+// Helper to check if invoice is within date range
+function isInvoiceInDateRange(inv, startDate, endDate) {
+  if (!startDate && !endDate) return true;
+  const invDate = parseInvoiceDate(inv);
+  if (startDate && invDate < new Date(startDate)) return false;
+  if (endDate && invDate > new Date(endDate)) return false;
+  return true;
+}
+
 async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } = {}) {
   const data = { dateRange: { startDate, endDate } };
 
@@ -122,25 +147,7 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     const displayInvoices = allInvoices
       .filter((inv) => {
         if (inv.Type !== 'ACCREC' || inv.Status !== 'AUTHORISED') return false;
-        if (startDate || endDate) {
-          let invDate;
-          // Parse date from Xero's format (could be DateString, Date, or /Date(ms)/ format)
-          if (inv.DateString) {
-            invDate = new Date(inv.DateString);
-          } else if (inv.Date && typeof inv.Date === 'string') {
-            if (inv.Date.startsWith('/Date(')) {
-              const match = inv.Date.match(/^\/Date\((\d+)/);
-              invDate = match ? new Date(parseInt(match[1])) : new Date(inv.Date);
-            } else {
-              invDate = new Date(inv.Date);
-            }
-          } else {
-            invDate = new Date(inv.Date);
-          }
-          if (startDate && invDate < new Date(startDate)) return false;
-          if (endDate && invDate > new Date(endDate)) return false;
-        }
-        return true;
+        return isInvoiceInDateRange(inv, startDate, endDate);
       })
       .map((inv) => {
         let dueDate = inv.DueDate;
@@ -166,8 +173,8 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     // Calculate totalReceivable from AUTHORISED invoices (outstanding)
     data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
 
-    // Calculate totalIncome from ALL ACCREC invoices regardless of status (total revenue since inception)
-    const allAcrecInvoices = allInvoices.filter(inv => inv.Type === 'ACCREC');
+    // Calculate totalIncome from ALL ACCREC invoices regardless of status (total revenue in date range)
+    const allAcrecInvoices = allInvoices.filter(inv => inv.Type === 'ACCREC' && isInvoiceInDateRange(inv, startDate, endDate));
     data.totalIncome = allAcrecInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
 
     // Debug: breakdown by status
