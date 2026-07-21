@@ -60,7 +60,7 @@ export default function FinanceDashboard({ user }) {
   const [notConnected, setNotConnected] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [drilldown, setDrilldown] = useState(null);
-  const [dateRange, setDateRange] = useState('current-month'); // 'current-month', 'current-quarter', 'current-year', 'custom'
+  const [dateRange, setDateRange] = useState('since-incorporation'); // 'since-incorporation', 'current-month', 'current-quarter', 'current-year', 'custom'
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
@@ -68,7 +68,10 @@ export default function FinanceDashboard({ user }) {
     const today = new Date();
     let startDate, endDate;
 
-    if (dateRange === 'current-month') {
+    if (dateRange === 'since-incorporation') {
+      startDate = new Date(2025, 5, 1); // July 1, 2025
+      endDate = today;
+    } else if (dateRange === 'current-month') {
       startDate = new Date(today.getFullYear(), today.getMonth(), 1);
       endDate = today;
     } else if (dateRange === 'current-quarter') {
@@ -167,6 +170,7 @@ export default function FinanceDashboard({ user }) {
               fontSize: '14px',
             }}
           >
+            <option value="since-incorporation">Since Incorporation (1 Jul 2025)</option>
             <option value="current-month">This Month</option>
             <option value="current-quarter">This Quarter</option>
             <option value="current-year">This Year</option>
