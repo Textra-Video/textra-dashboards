@@ -182,6 +182,12 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     );
     data.totalIncome = incomeInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
 
+    console.log('[Xero] Income invoices included in totalIncome:');
+    incomeInvoices.forEach(inv => {
+      console.log(`  ${inv.InvoiceNumber}: ${inv.Status} = £${inv.Total}`);
+    });
+    console.log(`[Xero] Total Income: £${data.totalIncome} from ${incomeInvoices.length} invoices`);
+
     // Log all invoice details for debugging
     console.log('[Xero] All ACCREC invoices by status:');
     allInvoices.filter(inv => inv.Type === 'ACCREC').forEach(inv => {
