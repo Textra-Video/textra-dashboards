@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+// Dashboard summary cards (large numbers in thousands)
 function fmtCurrency(value) {
   if (!value) return '—';
   return `£${(value / 1000).toFixed(1)}k`;
+}
+
+// Individual transaction amounts (actual pounds)
+function fmtTransactionAmount(value) {
+  if (!value) return '—';
+  if (Math.abs(value) < 1) return `£${(value).toFixed(2)}`;
+  return `£${Math.round(value)}`;
 }
 
 function fmtDate(dateValue) {
@@ -198,7 +206,7 @@ export default function FinanceDashboard({ user }) {
                             <tr key={i}>
                               <td>{fmtDate(tx.date)}</td>
                               <td>{tx.description}</td>
-                              <td className="amount">{fmtCurrency(tx.amount)}</td>
+                              <td className="amount">{fmtTransactionAmount(tx.amount)}</td>
                               <td>{tx.type}</td>
                             </tr>
                           ))

@@ -173,7 +173,7 @@ async function fetchFinancialData(accessToken, tenantId) {
           bankTransactionId: tx.BankTransactionID,
           accountId: tx.BankAccount?.AccountID,
           date,
-          description: tx.LineItems?.[0]?.Description || 'Transaction',
+          description: tx.LineItems?.[0]?.Description || tx.Reference || tx.Description || 'Transaction',
           amount: tx.Total || 0,
           type: tx.Type,
         };
