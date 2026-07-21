@@ -92,9 +92,11 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
   }
 
   // Bank Summary report - the only endpoint that returns actual closing balances
+  // NOTE: Do NOT filter by date range - show current balance regardless of date filter
+  // Cash Position is a point-in-time metric, not a period metric
   try {
     const reportParams = {};
-    if (endDate) reportParams.toDate = endDate; // Balance sheet snapshot at end date
+    // Always get current balance, don't filter by date range
     const bankSummaryRes = await fetchWithRetry(accessToken, tenantId, 'Reports/BankSummary', reportParams);
     const report = bankSummaryRes.data.Reports?.[0];
     const flatRows = flattenReportRows(report?.Rows || []);
