@@ -174,7 +174,7 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
 
     // Calculate totalIncome - sum all posted revenue: AUTHORISED (unpaid) + PAID (already paid)
-    // Exclude DRAFT, VOIDED, DELETED - these are not real revenue
+    // Exclude DRAFT, VOIDED, DELETED, SUBMITTED
     const incomeInvoices = allInvoices.filter(inv =>
       inv.Type === 'ACCREC' &&
       (inv.Status === 'AUTHORISED' || inv.Status === 'PAID') &&
