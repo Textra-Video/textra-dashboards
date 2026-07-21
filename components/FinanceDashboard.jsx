@@ -333,8 +333,14 @@ export default function FinanceDashboard({ user }) {
                     <table className="drilldown-table">
                       <tbody>
                         {drilldown.summary.map((row, i) => (
-                          <tr key={i}>
-                            <td>{row.label}</td>
+                          <tr
+                            key={i}
+                            onClick={row.onClick}
+                            style={row.onClick ? { cursor: 'pointer', opacity: 0.8 } : {}}
+                            onMouseEnter={(e) => row.onClick && (e.currentTarget.style.opacity = '1')}
+                            onMouseLeave={(e) => row.onClick && (e.currentTarget.style.opacity = '0.8')}
+                          >
+                            <td>{row.label} {row.onClick && '→'}</td>
                             <td className="amount">{fmtCurrency(row.value)}</td>
                           </tr>
                         ))}
@@ -403,8 +409,32 @@ export default function FinanceDashboard({ user }) {
                   description: 'Income, expenses, and net income for the current period.',
                   type: 'summary',
                   summary: [
-                    { label: 'Revenue', value: data.revenue },
-                    { label: 'Expenses', value: data.expenses },
+                    {
+                      label: 'Revenue',
+                      value: data.revenue,
+                      onClick: () =>
+                        setDrilldown({
+                          title: '💰 Revenue Details',
+                          description: 'All invoices contributing to revenue for the selected period.',
+                          type: 'invoices',
+                          recordType: 'receivable',
+                          items: data.invoices,
+                          xeroLink: 'https://go.xero.com/',
+                        }),
+                    },
+                    {
+                      label: 'Expenses',
+                      value: data.expenses,
+                      onClick: () =>
+                        setDrilldown({
+                          title: '📤 Expense Details',
+                          description: 'All bills and payments contributing to expenses for the selected period.',
+                          type: 'invoices',
+                          recordType: 'payable',
+                          items: data.payments,
+                          xeroLink: 'https://go.xero.com/',
+                        }),
+                    },
                     { label: 'Net Income', value: data.netIncome },
                   ],
                   xeroLink: 'https://go.xero.com/',
@@ -429,7 +459,18 @@ export default function FinanceDashboard({ user }) {
                   description: 'Assets, liabilities, and equity as of today.',
                   type: 'summary',
                   summary: [
-                    { label: 'Total Assets', value: data.totalAssets },
+                    {
+                      label: 'Total Assets',
+                      value: data.totalAssets,
+                      onClick: () =>
+                        setDrilldown({
+                          title: '💼 Assets Breakdown',
+                          description: 'All bank accounts and asset accounts.',
+                          type: 'accounts',
+                          items: data.bankAccounts,
+                          xeroLink: 'https://go.xero.com/',
+                        }),
+                    },
                     { label: 'Total Liabilities', value: data.totalLiabilities },
                     { label: 'Total Equity', value: data.totalEquity },
                   ],
