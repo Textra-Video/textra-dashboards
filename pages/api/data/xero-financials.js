@@ -55,6 +55,7 @@ async function fetchFinancialData(accessToken, tenantId) {
   try {
     const accountsRes = await fetchWithRetry(accessToken, tenantId, 'Accounts', { where: 'Type=="BANK"' });
     data.bankAccounts = (accountsRes.data.Accounts || []).map((acc) => ({
+      accountId: acc.AccountID,
       name: acc.Name,
       code: acc.Code,
       balance: 0,
@@ -107,6 +108,7 @@ async function fetchFinancialData(accessToken, tenantId) {
           }
         }
         return {
+          invoiceId: inv.InvoiceID,
           invoiceNumber: inv.InvoiceNumber,
           contact: inv.Contact?.Name || 'Unknown',
           amount: inv.Total || 0,
@@ -137,6 +139,7 @@ async function fetchFinancialData(accessToken, tenantId) {
           }
         }
         return {
+          invoiceId: bill.InvoiceID,
           invoiceNumber: bill.InvoiceNumber,
           contact: bill.Contact?.Name || 'Unknown',
           amount: bill.Total || 0,
@@ -167,6 +170,8 @@ async function fetchFinancialData(accessToken, tenantId) {
           }
         }
         return {
+          bankTransactionId: tx.BankTransactionID,
+          accountId: tx.BankAccount?.AccountID,
           date,
           description: tx.LineItems?.[0]?.Description || 'Transaction',
           amount: tx.Total || 0,

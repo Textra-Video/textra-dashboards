@@ -145,6 +145,7 @@ export default function FinanceDashboard({ user }) {
                           <th>Amount</th>
                           <th>Due Date</th>
                           <th>Status</th>
+                          <th></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -156,11 +157,24 @@ export default function FinanceDashboard({ user }) {
                               <td className="amount">{fmtCurrency(inv.amount)}</td>
                               <td>{fmtDate(inv.dueDate)}</td>
                               <td>{inv.status}</td>
+                              <td>
+                                {inv.invoiceId && (
+                                  <a
+                                    href={`https://go.xero.com/${drilldown.recordType === 'payable' ? 'AccountsPayable' : 'AccountsReceivable'}/View.aspx?InvoiceID=${inv.invoiceId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="view-in-xero-link"
+                                    style={{ marginTop: 0 }}
+                                  >
+                                    View →
+                                  </a>
+                                )}
+                              </td>
                             </tr>
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
+                            <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
                               No invoices to display
                             </td>
                           </tr>
@@ -211,9 +225,9 @@ export default function FinanceDashboard({ user }) {
                     </table>
                   )}
                 </div>
-                {drilldown.xeroLink && (
+                {drilldown.xeroLink && drilldown.type !== 'invoices' && (
                   <a href={drilldown.xeroLink} target="_blank" rel="noopener noreferrer" className="view-in-xero-link">
-                    View in Xero →
+                    Open Xero →
                   </a>
                 )}
               </div>
@@ -229,7 +243,7 @@ export default function FinanceDashboard({ user }) {
                   description: 'Bank accounts and current balances from Xero.',
                   type: 'accounts',
                   items: data.bankAccounts,
-                  xeroLink: 'https://go.xero.com/app/Settings/Bank',
+                  xeroLink: 'https://go.xero.com/',
                 })
               }
             >
@@ -252,7 +266,7 @@ export default function FinanceDashboard({ user }) {
                     { label: 'Expenses', value: data.expenses },
                     { label: 'Net Income', value: data.netIncome },
                   ],
-                  xeroLink: 'https://go.xero.com/app/Reports/ProfitandLoss',
+                  xeroLink: 'https://go.xero.com/',
                 })
               }
             >
@@ -275,7 +289,7 @@ export default function FinanceDashboard({ user }) {
                     { label: 'Total Liabilities', value: data.totalLiabilities },
                     { label: 'Total Equity', value: data.totalEquity },
                   ],
-                  xeroLink: 'https://go.xero.com/app/Reports/BalanceSheet',
+                  xeroLink: 'https://go.xero.com/',
                 })
               }
             >
@@ -293,8 +307,9 @@ export default function FinanceDashboard({ user }) {
                   title: '📥 Invoices Outstanding',
                   description: 'Customer invoices not yet paid.',
                   type: 'invoices',
+                  recordType: 'receivable',
                   items: data.invoices,
-                  xeroLink: 'https://go.xero.com/app/AccountsReceivable/ViewInvoicesList',
+                  xeroLink: 'https://go.xero.com/',
                 })
               }
             >
@@ -310,8 +325,9 @@ export default function FinanceDashboard({ user }) {
                   title: '📤 Bills Payable',
                   description: 'Supplier bills awaiting payment.',
                   type: 'invoices',
+                  recordType: 'payable',
                   items: data.payments,
-                  xeroLink: 'https://go.xero.com/app/AccountsPayable/ViewPayablesList',
+                  xeroLink: 'https://go.xero.com/',
                 })
               }
             >
@@ -328,7 +344,7 @@ export default function FinanceDashboard({ user }) {
                   description: 'Recent transactions across all bank accounts.',
                   type: 'transactions',
                   items: data.bankTransactions,
-                  xeroLink: 'https://go.xero.com/app/Settings/Bank',
+                  xeroLink: 'https://go.xero.com/',
                 })
               }
             >
