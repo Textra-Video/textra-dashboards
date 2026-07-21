@@ -173,22 +173,16 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     // Calculate totalReceivable from AUTHORISED invoices (outstanding)
     data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
 
-    // Calculate totalIncome from ALL ACCREC invoices (excluding credit notes)
-    // Credit notes in Xero may have negative amounts or be identifiable by invoice number starting with 'CN'
-    const allAcrecInvoices = allInvoices.filter(inv =>
+    // Calculate totalIncome from AUTHORISED ACCREC invoices only (posted/approved invoices)
+    // Exclude DRAFT, VOIDED, DELETED, SUBMITTED invoices to avoid counting test data or pending invoices
+    const authorisedAcrecInvoices = allInvoices.filter(inv =>
       inv.Type === 'ACCREC' &&
-      (inv.Total || 0) !== 0 && // Exclude zero amounts
-      !inv.InvoiceNumber.startsWith('CN-') && // Exclude credit notes by invoice number
+      inv.Status === 'AUTHORISED' &&
       isInvoiceInDateRange(inv, startDate, endDate)
     );
-    data.totalIncome = allAcrecInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
+    data.totalIncome = authorisedAcrecInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
 
-    // DEBUG: Log every invoice used in totalIncome calculation
-    console.log('[Xero] Invoices included in totalIncome calculation:');
-    allAcrecInvoices.forEach(inv => {
-      console.log(`  ${inv.InvoiceNumber}: £${inv.Total}`);
-    });
-    console.log(`[Xero] Total Income: £${data.totalIncome} from ${allAcrecInvoices.length} invoices`);
+    console.log(`[Xero] Total Income: £${data.totalIncome} from ${authorisedAcrecInvoices.length} AUTHORISED ACCREC invoices`);
 
     // Debug: breakdown by status
     const acrecByStatus = {};
