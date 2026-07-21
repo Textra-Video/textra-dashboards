@@ -70,9 +70,13 @@ export default function FinanceDashboard({ user }) {
       endDate = customEnd ? new Date(customEnd) : null;
     }
 
+    // Format dates without timezone conversion (toISOString converts to UTC which shifts dates)
+    const pad = (n) => String(n).padStart(2, '0');
+    const formatDate = (d) => d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` : undefined;
+
     return {
-      startDate: startDate ? startDate.toISOString().split('T')[0] : undefined,
-      endDate: endDate ? endDate.toISOString().split('T')[0] : undefined,
+      startDate: formatDate(startDate),
+      endDate: formatDate(endDate),
     };
   };
 

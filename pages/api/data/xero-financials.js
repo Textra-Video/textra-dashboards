@@ -97,7 +97,11 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
   // Invoices (accounts receivable) - get all invoices and filter in code
   try {
     const invoicesRes = await fetchWithRetry(accessToken, tenantId, 'Invoices');
-    data.invoices = (invoicesRes.data.Invoices || [])
+    const allInvoices = invoicesRes.data.Invoices || [];
+    console.log(`[Xero] Total invoices from API: ${allInvoices.length}`);
+    console.log('[Xero] Invoice types/statuses:', allInvoices.slice(0, 5).map(i => ({ type: i.Type, status: i.Status, total: i.Total })));
+
+    data.invoices = allInvoices
       .filter((inv) => {
         if (inv.Type !== 'ACCREC' || inv.Status !== 'AUTHORISED') return false;
         if (startDate || endDate) {
