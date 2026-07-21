@@ -145,35 +145,45 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     });
     console.log('[Xero] Invoice counts by type/status:', byTypeStatus);
 
-    // For display purposes, show only outstanding (AUTHORISED) invoices
-    const displayInvoices = allInvoices
-      .filter((inv) => {
-        if (inv.Type !== 'ACCREC' || inv.Status !== 'AUTHORISED') return false;
-        return isInvoiceInDateRange(inv, startDate, endDate);
-      })
-      .map((inv) => {
-        let dueDate = inv.DueDate;
-        // Parse Microsoft JSON date format on API side
-        if (dueDate && typeof dueDate === 'string' && dueDate.startsWith('/Date(')) {
-          const match = dueDate.match(/^\/Date\((\d+)/);
-          if (match) {
-            const d = new Date(parseInt(match[1]));
-            dueDate = d.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
-          }
+    // Prepare invoice display data - includes ALL revenue invoices (AUTHORISED + PAID)
+    // for the Revenue Details modal, plus separate tracking for outstanding receivables
+    const formatInvoiceForDisplay = (inv) => {
+      let dueDate = inv.DueDate;
+      // Parse Microsoft JSON date format on API side
+      if (dueDate && typeof dueDate === 'string' && dueDate.startsWith('/Date(')) {
+        const match = dueDate.match(/^\/Date\((\d+)/);
+        if (match) {
+          const d = new Date(parseInt(match[1]));
+          dueDate = d.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
         }
-        return {
-          invoiceId: inv.InvoiceID,
-          invoiceNumber: inv.InvoiceNumber,
-          contact: inv.Contact?.Name || 'Unknown',
-          amount: inv.Total || 0,
-          dueDate,
-          status: inv.Status,
-        };
-      });
-    data.invoices = displayInvoices;
+      }
+      return {
+        invoiceId: inv.InvoiceID,
+        invoiceNumber: inv.InvoiceNumber,
+        contact: inv.Contact?.Name || 'Unknown',
+        amount: inv.Total || 0,
+        dueDate,
+        status: inv.Status,
+      };
+    };
 
-    // Calculate totalReceivable from AUTHORISED invoices (outstanding)
-    data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
+    // data.invoices = ALL revenue invoices (both paid and outstanding) for Revenue Details modal
+    const allRevenueInvoices = allInvoices
+      .filter((inv) => {
+        return inv.Type === 'ACCREC' &&
+               (inv.Status === 'AUTHORISED' || inv.Status === 'PAID') &&
+               isInvoiceInDateRange(inv, startDate, endDate);
+      })
+      .map(formatInvoiceForDisplay);
+    data.invoices = allRevenueInvoices;
+
+    // Calculate totalReceivable from AUTHORISED invoices only (outstanding)
+    const outstandingInvoices = allInvoices.filter((inv) => {
+      return inv.Type === 'ACCREC' &&
+             inv.Status === 'AUTHORISED' &&
+             isInvoiceInDateRange(inv, startDate, endDate);
+    });
+    data.totalReceivable = outstandingInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
 
     // Calculate totalIncome - sum all posted revenue: AUTHORISED (unpaid) + PAID (already paid)
     // Exclude DRAFT, VOIDED, DELETED, SUBMITTED
@@ -249,36 +259,53 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
   // Bill payments (accounts payable) - get all invoices and filter in code
   try {
     const billsRes = await fetchWithRetry(accessToken, tenantId, 'Invoices');
-    data.payments = (billsRes.data.Invoices || [])
+    const allBills = billsRes.data.Invoices || [];
+
+    const formatBillForDisplay = (bill) => {
+      let dueDate = bill.DueDate;
+      // Parse Microsoft JSON date format on API side
+      if (dueDate && typeof dueDate === 'string' && dueDate.startsWith('/Date(')) {
+        const match = dueDate.match(/^\/Date\((\d+)/);
+        if (match) {
+          const d = new Date(parseInt(match[1]));
+          dueDate = d.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+        }
+      }
+      return {
+        invoiceId: bill.InvoiceID,
+        invoiceNumber: bill.InvoiceNumber,
+        contact: bill.Contact?.Name || 'Unknown',
+        amount: bill.Total || 0,
+        dueDate,
+        status: bill.Status,
+      };
+    };
+
+    // data.payments = ALL expense bills (both paid and outstanding) for Expense Details modal
+    const isDateInRange = (billDate) => {
+      if (!startDate && !endDate) return true;
+      const bd = new Date(billDate);
+      if (startDate && bd < new Date(startDate)) return false;
+      if (endDate && bd > new Date(endDate)) return false;
+      return true;
+    };
+
+    const allExpenseBills = allBills
       .filter((bill) => {
-        if (bill.Type !== 'ACCPAY' || bill.Status !== 'AUTHORISED') return false;
-        if (startDate || endDate) {
-          const billDate = new Date(bill.DateString || bill.Date);
-          if (startDate && billDate < new Date(startDate)) return false;
-          if (endDate && billDate > new Date(endDate)) return false;
-        }
-        return true;
+        return bill.Type === 'ACCPAY' &&
+               (bill.Status === 'AUTHORISED' || bill.Status === 'PAID') &&
+               isDateInRange(bill.DateString || bill.Date);
       })
-      .map((bill) => {
-        let dueDate = bill.DueDate;
-        // Parse Microsoft JSON date format on API side
-        if (dueDate && typeof dueDate === 'string' && dueDate.startsWith('/Date(')) {
-          const match = dueDate.match(/^\/Date\((\d+)/);
-          if (match) {
-            const d = new Date(parseInt(match[1]));
-            dueDate = d.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
-          }
-        }
-        return {
-          invoiceId: bill.InvoiceID,
-          invoiceNumber: bill.InvoiceNumber,
-          contact: bill.Contact?.Name || 'Unknown',
-          amount: bill.Total || 0,
-          dueDate,
-          status: bill.Status,
-        };
-      });
-    data.totalPayable = data.payments.reduce((sum, bill) => sum + (bill.amount || 0), 0);
+      .map(formatBillForDisplay);
+    data.payments = allExpenseBills;
+
+    // Calculate totalPayable from AUTHORISED bills only (outstanding)
+    const outstandingBills = allBills.filter((bill) => {
+      return bill.Type === 'ACCPAY' &&
+             bill.Status === 'AUTHORISED' &&
+             isDateInRange(bill.DateString || bill.Date);
+    });
+    data.totalPayable = outstandingBills.reduce((sum, bill) => sum + (bill.Total || 0), 0);
   } catch (err) {
     console.error('Bills error:', err.response?.status, err.response?.data?.Detail);
     data.payments = [];
