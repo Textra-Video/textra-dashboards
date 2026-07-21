@@ -180,13 +180,33 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
       (inv.Status === 'AUTHORISED' || inv.Status === 'PAID') &&
       isInvoiceInDateRange(inv, startDate, endDate)
     );
-    data.totalIncome = incomeInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
+    let totalIncome = incomeInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
+
+    // Fetch credit notes and subtract from total income (net revenue)
+    let creditNotesTotal = 0;
+    try {
+      const creditNotesRes = await fetchWithRetry(accessToken, tenantId, 'CreditNotes');
+      const creditNotes = creditNotesRes.data.CreditNotes || [];
+      console.log(`[Xero] Credit notes fetched: ${creditNotes.length}`);
+
+      creditNotes.forEach(cn => {
+        if (isInvoiceInDateRange(cn, startDate, endDate)) {
+          creditNotesTotal += (cn.Total || 0);
+          console.log(`[Xero]   CN-${cn.CreditNoteNumber}: £${cn.Total}`);
+        }
+      });
+    } catch (err) {
+      console.log(`[Xero] Could not fetch credit notes: ${err.message}`);
+    }
+
+    totalIncome -= creditNotesTotal;
+    data.totalIncome = totalIncome;
 
     console.log('[Xero] Income invoices included in totalIncome:');
     incomeInvoices.forEach(inv => {
       console.log(`  ${inv.InvoiceNumber}: ${inv.Status} = £${inv.Total}`);
     });
-    console.log(`[Xero] Total Income: £${data.totalIncome} from ${incomeInvoices.length} invoices`);
+    console.log(`[Xero] Total Income: £${data.totalIncome} (Gross: £${incomeInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0)} - Credit notes: £${creditNotesTotal})`);
 
     // Log all invoice details for debugging
     console.log('[Xero] All ACCREC invoices by status:');
