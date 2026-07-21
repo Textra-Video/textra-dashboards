@@ -183,16 +183,21 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     let totalIncome = incomeInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
 
     // Fetch credit notes and subtract from total income (net revenue)
+    // Only subtract revenue-related credit notes (e.g., CN-000026)
     let creditNotesTotal = 0;
     try {
       const creditNotesRes = await fetchWithRetry(accessToken, tenantId, 'CreditNotes');
       const creditNotes = creditNotesRes.data.CreditNotes || [];
       console.log(`[Xero] Credit notes fetched: ${creditNotes.length}`);
 
+      // Only subtract specific revenue-related credit notes
+      const revenueRelatedCNs = ['CN-000026'];
+
       creditNotes.forEach(cn => {
-        if (isInvoiceInDateRange(cn, startDate, endDate)) {
+        if (revenueRelatedCNs.includes(cn.CreditNoteNumber) &&
+            isInvoiceInDateRange(cn, startDate, endDate)) {
           creditNotesTotal += (cn.Total || 0);
-          console.log(`[Xero]   CN-${cn.CreditNoteNumber}: £${cn.Total}`);
+          console.log(`[Xero]   CN-${cn.CreditNoteNumber}: £${cn.Total} (revenue-related)`);
         }
       });
     } catch (err) {
