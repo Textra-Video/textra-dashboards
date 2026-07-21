@@ -13,12 +13,21 @@ function InfoTooltip({ text }) {
 
 // Dashboard summary cards (large numbers in thousands)
 function fmtCurrency(value) {
+  if (value === 0 || value === '0') return '£0k';
   if (!value) return '—';
   return `£${(value / 1000).toFixed(1)}k`;
 }
 
+// Cash position and account balances (full precision in pounds)
+function fmtAccountBalance(value) {
+  if (value === 0 || value === '0') return '£0.00';
+  if (!value) return '—';
+  return `£${parseFloat(value).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 // Individual transaction amounts (actual pounds)
 function fmtTransactionAmount(value) {
+  if (value === 0 || value === '0') return '£0.00';
   if (!value) return '—';
   if (Math.abs(value) < 1) return `£${(value).toFixed(2)}`;
   return `£${Math.round(value)}`;
@@ -228,7 +237,7 @@ export default function FinanceDashboard({ user }) {
                             <tr key={i}>
                               <td>{acc.name}</td>
                               <td className="code">{acc.code}</td>
-                              <td className="amount">{fmtCurrency(acc.balance)}</td>
+                              <td className="amount">{fmtAccountBalance(acc.balance)}</td>
                               <td>{acc.currency}</td>
                             </tr>
                           ))
@@ -359,7 +368,7 @@ export default function FinanceDashboard({ user }) {
                 💰 Cash Position
                 <InfoTooltip text="Total balance across all connected bank accounts" />
               </div>
-              <div className="metric-value">{fmtCurrency(data.totalCash)}</div>
+              <div className="metric-value">{fmtAccountBalance(data.totalCash)}</div>
               <div className="metric-subtext">
                 {data.bankAccounts?.length || 0} bank account{(data.bankAccounts?.length || 0) !== 1 ? 's' : ''}
               </div>
