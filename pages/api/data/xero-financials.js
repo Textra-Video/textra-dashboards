@@ -68,7 +68,9 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
 
   // Bank Summary report - the only endpoint that returns actual closing balances
   try {
-    const bankSummaryRes = await fetchWithRetry(accessToken, tenantId, 'Reports/BankSummary');
+    const reportParams = {};
+    if (endDate) reportParams.toDate = endDate; // Balance sheet snapshot at end date
+    const bankSummaryRes = await fetchWithRetry(accessToken, tenantId, 'Reports/BankSummary', reportParams);
     const report = bankSummaryRes.data.Reports?.[0];
     const flatRows = flattenReportRows(report?.Rows || []);
 
@@ -99,7 +101,20 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
       .filter((inv) => {
         if (inv.Type !== 'ACCREC' || inv.Status !== 'AUTHORISED') return false;
         if (startDate || endDate) {
-          const invDate = new Date(inv.InvoiceNumber.match(/\d{4}-\d{2}-\d{2}/) || inv.DateString || inv.Date);
+          let invDate;
+          // Parse date from Xero's format (could be DateString, Date, or /Date(ms)/ format)
+          if (inv.DateString) {
+            invDate = new Date(inv.DateString);
+          } else if (inv.Date && typeof inv.Date === 'string') {
+            if (inv.Date.startsWith('/Date(')) {
+              const match = inv.Date.match(/^\/Date\((\d+)/);
+              invDate = match ? new Date(parseInt(match[1])) : new Date(inv.Date);
+            } else {
+              invDate = new Date(inv.Date);
+            }
+          } else {
+            invDate = new Date(inv.Date);
+          }
           if (startDate && invDate < new Date(startDate)) return false;
           if (endDate && invDate > new Date(endDate)) return false;
         }
@@ -126,6 +141,10 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
       });
     data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
     data.totalIncome = data.totalReceivable; // Total income = all ACCREC invoices
+    console.log(`[Xero] Fetched ${data.invoices.length} invoices, totalIncome: £${data.totalIncome}, dateRange:`, { startDate, endDate });
+    if (data.invoices.length > 0) {
+      console.log('[Xero] Sample invoices:', data.invoices.slice(0, 3).map(i => ({ number: i.invoiceNumber, amount: i.amount })));
+    }
   } catch (err) {
     console.error('Invoices error:', err.response?.status, err.response?.data?.Detail);
     data.invoices = [];
@@ -217,7 +236,10 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
   // sections (Income, Less Operating Expenses, ...) each containing a
   // SummaryRow labelled "Total X", plus a final top-level "Net Profit" row.
   try {
-    const plRes = await fetchWithRetry(accessToken, tenantId, 'Reports/ProfitAndLoss');
+    const reportParams = {};
+    if (startDate) reportParams.fromDate = startDate;
+    if (endDate) reportParams.toDate = endDate;
+    const plRes = await fetchWithRetry(accessToken, tenantId, 'Reports/ProfitAndLoss', reportParams);
     const report = plRes.data.Reports?.[0];
     const flatRows = flattenReportRows(report?.Rows || []);
 
@@ -228,6 +250,7 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     data.revenue = revenue;
     data.expenses = expenses;
     data.netIncome = netIncome || revenue - expenses;
+    console.log('[Xero] P&L Report:', { revenue, expenses, netIncome, calculated: revenue - expenses });
   } catch (err) {
     console.error('P&L error:', err.response?.status, err.response?.data?.Detail);
     data.revenue = 0;
@@ -237,7 +260,10 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
 
   // Balance Sheet Report - same nested Section/SummaryRow shape as P&L.
   try {
-    const bsRes = await fetchWithRetry(accessToken, tenantId, 'Reports/BalanceSheet');
+    const reportParams = {};
+    if (startDate) reportParams.fromDate = startDate;
+    if (endDate) reportParams.toDate = endDate;
+    const bsRes = await fetchWithRetry(accessToken, tenantId, 'Reports/BalanceSheet', reportParams);
     const report = bsRes.data.Reports?.[0];
     const flatRows = flattenReportRows(report?.Rows || []);
 
