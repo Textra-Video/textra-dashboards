@@ -122,15 +122,8 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
   // Invoices (accounts receivable) - get all invoices and filter in code
   try {
     const invoicesRes = await fetchWithRetry(accessToken, tenantId, 'Invoices');
-    let allInvoices = invoicesRes.data.Invoices || [];
-
-    // Also fetch credit notes to subtract from totalIncome
-    const creditNotesRes = await fetchWithRetry(accessToken, tenantId, 'CreditNotes');
-    const creditNotes = creditNotesRes.data.CreditNotes || [];
-    console.log(`[Xero] Total invoices from API: ${allInvoices.length}, Credit notes: ${creditNotes.length}`);
-
-    // Add credit notes to allInvoices with Type='ACCRECCREDNOTE' for processing
-    allInvoices = [...allInvoices, ...creditNotes.map(cn => ({ ...cn, Type: 'ACCRECCREDNOTE' }))];
+    const allInvoices = invoicesRes.data.Invoices || [];
+    console.log(`[Xero] Total invoices from API: ${allInvoices.length}`);
 
     // Log ALL invoices with details
     const allInvoicesSummary = allInvoices.map(i => ({
@@ -187,16 +180,7 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
       (inv.Status === 'AUTHORISED' || inv.Status === 'PAID') &&
       isInvoiceInDateRange(inv, startDate, endDate)
     );
-    let totalIncome = incomeInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
-
-    // Subtract credit notes from total income (net revenue after credits)
-    const creditNotes = allInvoices.filter(inv =>
-      inv.Type === 'ACCRECCREDNOTE' &&
-      isInvoiceInDateRange(inv, startDate, endDate)
-    );
-    const creditNoteTotal = creditNotes.reduce((sum, cn) => sum + (cn.Total || 0), 0);
-    totalIncome -= creditNoteTotal;
-    data.totalIncome = totalIncome;
+    data.totalIncome = incomeInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
 
     console.log('[Xero] Income invoices included in totalIncome:');
     incomeInvoices.forEach(inv => {
