@@ -173,8 +173,13 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     // Calculate totalReceivable from AUTHORISED invoices (outstanding)
     data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
 
-    // Calculate totalIncome from ALL ACCREC invoices regardless of status (total revenue in date range)
-    const allAcrecInvoices = allInvoices.filter(inv => inv.Type === 'ACCREC' && isInvoiceInDateRange(inv, startDate, endDate));
+    // Calculate totalIncome from ALL ACCREC invoices (excluding credit notes)
+    // Credit notes in Xero have negative amounts, so we exclude them by checking for positive amounts
+    const allAcrecInvoices = allInvoices.filter(inv =>
+      inv.Type === 'ACCREC' &&
+      (inv.Total || 0) > 0 && // Exclude credit notes (negative amounts)
+      isInvoiceInDateRange(inv, startDate, endDate)
+    );
     data.totalIncome = allAcrecInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
 
     // Debug: breakdown by status
