@@ -397,7 +397,7 @@ export default function FinanceDashboard({ user }) {
                 💰 Total Income
                 <InfoTooltip text="Sum of all invoiced income for the selected date range" />
               </div>
-              <div className="metric-value">{fmtCurrency(data.totalIncome)}</div>
+              <div className="metric-value">{fmtAccountBalance(data.totalIncome)}</div>
               <div className="metric-subtext">{data.invoices?.length || 0} invoice{(data.invoices?.length || 0) !== 1 ? 's' : ''}</div>
             </button>
 
@@ -445,7 +445,7 @@ export default function FinanceDashboard({ user }) {
                 📊 P&L — Net Income
                 <InfoTooltip text="Revenue minus expenses for the selected date range" />
               </div>
-              <div className="metric-value">{fmtCurrency(data.netIncome)}</div>
+              <div className="metric-value">{fmtAccountBalance(data.netIncome)}</div>
               <div className="metric-subtext">
                 Revenue: {fmtCurrency(data.revenue)} · Expenses: {fmtCurrency(data.expenses)}
               </div>
@@ -482,7 +482,7 @@ export default function FinanceDashboard({ user }) {
                 📈 Balance Sheet — Assets
                 <InfoTooltip text="Total value of company assets (current snapshot)" />
               </div>
-              <div className="metric-value">{fmtCurrency(data.totalAssets)}</div>
+              <div className="metric-value">{fmtAccountBalance(data.totalAssets)}</div>
               <div className="metric-subtext">
                 Liabilities: {fmtCurrency(data.totalLiabilities)} · Equity: {fmtCurrency(data.totalEquity)}
               </div>
@@ -505,7 +505,7 @@ export default function FinanceDashboard({ user }) {
                 📥 Accounts Receivable
                 <InfoTooltip text="Total value of unpaid customer invoices" />
               </div>
-              <div className="metric-value">{fmtCurrency(data.totalReceivable)}</div>
+              <div className="metric-value">{fmtAccountBalance(data.totalReceivable)}</div>
               <div className="metric-subtext">{data.invoices?.length || 0} outstanding invoice{(data.invoices?.length || 0) !== 1 ? 's' : ''}</div>
             </button>
 
@@ -526,7 +526,7 @@ export default function FinanceDashboard({ user }) {
                 📤 Accounts Payable
                 <InfoTooltip text="Total value of unpaid supplier bills" />
               </div>
-              <div className="metric-value">{fmtCurrency(data.totalPayable)}</div>
+              <div className="metric-value">{fmtAccountBalance(data.totalPayable)}</div>
               <div className="metric-subtext">{data.payments?.length || 0} outstanding bill{(data.payments?.length || 0) !== 1 ? 's' : ''}</div>
             </button>
 
