@@ -385,10 +385,10 @@ export default function FinanceDashboard({ user }) {
               onClick={() =>
                 setDrilldown({
                   title: '💰 Total Income',
-                  description: 'Total invoiced income for the selected period.',
+                  description: 'All invoiced income for the selected period.',
                   type: 'invoices',
                   recordType: 'receivable',
-                  items: data.invoices,
+                  items: data.revenueInvoices,
                   xeroLink: 'https://go.xero.com/',
                 })
               }
@@ -398,7 +398,7 @@ export default function FinanceDashboard({ user }) {
                 <InfoTooltip text="Sum of all invoiced income for the selected date range" />
               </div>
               <div className="metric-value">{fmtAccountBalance(data.totalIncome)}</div>
-              <div className="metric-subtext">{data.invoices?.length || 0} invoice{(data.invoices?.length || 0) !== 1 ? 's' : ''}</div>
+              <div className="metric-subtext">{data.revenueInvoices?.length || 0} invoice{(data.revenueInvoices?.length || 0) !== 1 ? 's' : ''}</div>
             </button>
 
             <button
