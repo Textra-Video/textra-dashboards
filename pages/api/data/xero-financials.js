@@ -145,8 +145,7 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     });
     console.log('[Xero] Invoice counts by type/status:', byTypeStatus);
 
-    // Prepare invoice display data - includes ALL revenue invoices (AUTHORISED + PAID)
-    // for the Revenue Details modal, plus separate tracking for outstanding receivables
+    // Prepare invoice display data formatter
     const formatInvoiceForDisplay = (inv) => {
       let dueDate = inv.DueDate;
       // Parse Microsoft JSON date format on API side
@@ -167,7 +166,16 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
       };
     };
 
-    // data.invoices = ALL revenue invoices (both paid and outstanding) for Revenue Details modal
+    // data.invoices = AUTHORISED only (for Accounts Receivable card)
+    const outstandingInvoices = allInvoices.filter((inv) => {
+      return inv.Type === 'ACCREC' &&
+             inv.Status === 'AUTHORISED' &&
+             isInvoiceInDateRange(inv, startDate, endDate);
+    });
+    data.invoices = outstandingInvoices.map(formatInvoiceForDisplay);
+    data.totalReceivable = outstandingInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
+
+    // data.revenueInvoices = ALL revenue invoices (for Revenue Details modal drill-down)
     const allRevenueInvoices = allInvoices
       .filter((inv) => {
         return inv.Type === 'ACCREC' &&
@@ -175,15 +183,7 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
                isInvoiceInDateRange(inv, startDate, endDate);
       })
       .map(formatInvoiceForDisplay);
-    data.invoices = allRevenueInvoices;
-
-    // Calculate totalReceivable from AUTHORISED invoices only (outstanding)
-    const outstandingInvoices = allInvoices.filter((inv) => {
-      return inv.Type === 'ACCREC' &&
-             inv.Status === 'AUTHORISED' &&
-             isInvoiceInDateRange(inv, startDate, endDate);
-    });
-    data.totalReceivable = outstandingInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
+    data.revenueInvoices = allRevenueInvoices;
 
     // Calculate totalIncome - sum all posted revenue: AUTHORISED (unpaid) + PAID (already paid)
     // Exclude DRAFT, VOIDED, DELETED, SUBMITTED
@@ -281,7 +281,6 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
       };
     };
 
-    // data.payments = ALL expense bills (both paid and outstanding) for Expense Details modal
     const isDateInRange = (billDate) => {
       if (!startDate && !endDate) return true;
       const bd = new Date(billDate);
@@ -290,6 +289,16 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
       return true;
     };
 
+    // data.payments = AUTHORISED only (for Accounts Payable card)
+    const outstandingBills = allBills.filter((bill) => {
+      return bill.Type === 'ACCPAY' &&
+             bill.Status === 'AUTHORISED' &&
+             isDateInRange(bill.DateString || bill.Date);
+    });
+    data.payments = outstandingBills.map(formatBillForDisplay);
+    data.totalPayable = outstandingBills.reduce((sum, bill) => sum + (bill.Total || 0), 0);
+
+    // data.expenseBills = ALL expense bills (for Expense Details modal drill-down)
     const allExpenseBills = allBills
       .filter((bill) => {
         return bill.Type === 'ACCPAY' &&
@@ -297,15 +306,7 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
                isDateInRange(bill.DateString || bill.Date);
       })
       .map(formatBillForDisplay);
-    data.payments = allExpenseBills;
-
-    // Calculate totalPayable from AUTHORISED bills only (outstanding)
-    const outstandingBills = allBills.filter((bill) => {
-      return bill.Type === 'ACCPAY' &&
-             bill.Status === 'AUTHORISED' &&
-             isDateInRange(bill.DateString || bill.Date);
-    });
-    data.totalPayable = outstandingBills.reduce((sum, bill) => sum + (bill.Total || 0), 0);
+    data.expenseBills = allExpenseBills;
   } catch (err) {
     console.error('Bills error:', err.response?.status, err.response?.data?.Detail);
     data.payments = [];
@@ -360,17 +361,10 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     // Revenue = sum of filtered invoices (already calculated as totalIncome)
     let revenue = data.totalIncome || 0;
 
-    // Expenses = sum of bill payments in the filtered date range
+    // Expenses = sum of all expense bills (AUTHORISED + PAID) in the filtered date range
     let expenses = 0;
-    if (data.payments && Array.isArray(data.payments)) {
-      expenses = data.payments.reduce((sum, payment) => {
-        // Payment invoices have dueDate field; check if within range
-        const paymentDate = payment.dueDate ? new Date(payment.dueDate) : null;
-        if (!paymentDate) return sum;
-        if (startDate && paymentDate < new Date(startDate)) return sum;
-        if (endDate && paymentDate > new Date(endDate)) return sum;
-        return sum + (payment.amount || 0);
-      }, 0);
+    if (data.expenseBills && Array.isArray(data.expenseBills)) {
+      expenses = data.expenseBills.reduce((sum, bill) => sum + (bill.amount || 0), 0);
     }
 
     const netIncome = Math.max(0, revenue - expenses);
