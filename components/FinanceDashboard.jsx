@@ -34,13 +34,42 @@ export default function FinanceDashboard({ user }) {
   const [notConnected, setNotConnected] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [drilldown, setDrilldown] = useState(null);
+  const [dateRange, setDateRange] = useState('current-month'); // 'current-month', 'current-quarter', 'current-year', 'custom'
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+
+  const getDateRangeParams = () => {
+    const today = new Date();
+    let startDate, endDate;
+
+    if (dateRange === 'current-month') {
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      endDate = today;
+    } else if (dateRange === 'current-quarter') {
+      const quarter = Math.floor(today.getMonth() / 3);
+      startDate = new Date(today.getFullYear(), quarter * 3, 1);
+      endDate = today;
+    } else if (dateRange === 'current-year') {
+      startDate = new Date(today.getFullYear(), 0, 1);
+      endDate = today;
+    } else if (dateRange === 'custom') {
+      startDate = customStart ? new Date(customStart) : null;
+      endDate = customEnd ? new Date(customEnd) : null;
+    }
+
+    return {
+      startDate: startDate ? startDate.toISOString().split('T')[0] : undefined,
+      endDate: endDate ? endDate.toISOString().split('T')[0] : undefined,
+    };
+  };
 
   const fetchFinancials = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await axios.post('/api/data/xero-financials');
+      const params = getDateRangeParams();
+      const response = await axios.get('/api/data/xero-financials', { params });
       if (response.data.success) {
         setData(response.data.data);
         setNotConnected(false);
@@ -59,7 +88,7 @@ export default function FinanceDashboard({ user }) {
 
   useEffect(() => {
     fetchFinancials();
-  }, []);
+  }, [dateRange, customStart, customEnd]);
 
   const xeroConnectUrl = `https://login.xero.com/identity/connect/authorize?response_type=code&client_id=${process.env.NEXT_PUBLIC_XERO_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_XERO_REDIRECT_URI)}&scope=offline_access%20accounting.invoices%20accounting.payments%20accounting.banktransactions%20accounting.reports.aged.read%20accounting.reports.balancesheet.read%20accounting.reports.banksummary.read%20accounting.reports.profitandloss.read%20accounting.contacts%20accounting.settings.read`;
 
@@ -98,9 +127,60 @@ export default function FinanceDashboard({ user }) {
             Reconnect Xero (grants new permissions)
           </a>
         </div>
-        <button className="refresh-button" onClick={fetchFinancials} disabled={loading}>
-          {loading ? 'Loading...' : 'Refresh Data'}
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '4px',
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--bg)',
+              color: 'var(--text)',
+              cursor: 'pointer',
+              fontSize: '14px',
+            }}
+          >
+            <option value="current-month">This Month</option>
+            <option value="current-quarter">This Quarter</option>
+            <option value="current-year">This Year</option>
+            <option value="custom">Custom Range</option>
+          </select>
+          {dateRange === 'custom' && (
+            <>
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg)',
+                  color: 'var(--text)',
+                  fontSize: '14px',
+                }}
+              />
+              <span style={{ color: 'var(--muted)' }}>to</span>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg)',
+                  color: 'var(--text)',
+                  fontSize: '14px',
+                }}
+              />
+            </>
+          )}
+          <button className="refresh-button" onClick={fetchFinancials} disabled={loading}>
+            {loading ? 'Loading...' : 'Refresh Data'}
+          </button>
+        </div>
       </div>
 
       {error && <div className="error">Error: {error}</div>}
@@ -262,6 +342,24 @@ export default function FinanceDashboard({ user }) {
               <div className="metric-subtext">
                 {data.bankAccounts?.length || 0} bank account{(data.bankAccounts?.length || 0) !== 1 ? 's' : ''}
               </div>
+            </button>
+
+            <button
+              className="metric-card metric-card-clickable success"
+              onClick={() =>
+                setDrilldown({
+                  title: '💰 Total Income',
+                  description: 'Total invoiced income for the selected period.',
+                  type: 'invoices',
+                  recordType: 'receivable',
+                  items: data.invoices,
+                  xeroLink: 'https://go.xero.com/',
+                })
+              }
+            >
+              <div className="metric-label">💰 Total Income</div>
+              <div className="metric-value">{fmtCurrency(data.totalIncome)}</div>
+              <div className="metric-subtext">{data.invoices?.length || 0} invoice{(data.invoices?.length || 0) !== 1 ? 's' : ''}</div>
             </button>
 
             <button

@@ -47,8 +47,8 @@ function findRowValue(flatRows, labelMatchers) {
   return raw ? parseFloat(raw) || 0 : 0;
 }
 
-async function fetchFinancialData(accessToken, tenantId) {
-  const data = {};
+async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } = {}) {
+  const data = { dateRange: { startDate, endDate } };
 
   // Bank accounts - list of accounts (name/code/currency) has no balance field;
   // actual balances come from the BankSummary report below.
@@ -96,7 +96,15 @@ async function fetchFinancialData(accessToken, tenantId) {
   try {
     const invoicesRes = await fetchWithRetry(accessToken, tenantId, 'Invoices');
     data.invoices = (invoicesRes.data.Invoices || [])
-      .filter((inv) => inv.Type === 'ACCREC' && inv.Status === 'AUTHORISED')
+      .filter((inv) => {
+        if (inv.Type !== 'ACCREC' || inv.Status !== 'AUTHORISED') return false;
+        if (startDate || endDate) {
+          const invDate = new Date(inv.InvoiceNumber.match(/\d{4}-\d{2}-\d{2}/) || inv.DateString || inv.Date);
+          if (startDate && invDate < new Date(startDate)) return false;
+          if (endDate && invDate > new Date(endDate)) return false;
+        }
+        return true;
+      })
       .map((inv) => {
         let dueDate = inv.DueDate;
         // Parse Microsoft JSON date format on API side
@@ -117,17 +125,27 @@ async function fetchFinancialData(accessToken, tenantId) {
         };
       });
     data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
+    data.totalIncome = data.totalReceivable; // Total income = all ACCREC invoices
   } catch (err) {
     console.error('Invoices error:', err.response?.status, err.response?.data?.Detail);
     data.invoices = [];
     data.totalReceivable = 0;
+    data.totalIncome = 0;
   }
 
   // Bill payments (accounts payable) - get all invoices and filter in code
   try {
     const billsRes = await fetchWithRetry(accessToken, tenantId, 'Invoices');
     data.payments = (billsRes.data.Invoices || [])
-      .filter((bill) => bill.Type === 'ACCPAY' && bill.Status === 'AUTHORISED')
+      .filter((bill) => {
+        if (bill.Type !== 'ACCPAY' || bill.Status !== 'AUTHORISED') return false;
+        if (startDate || endDate) {
+          const billDate = new Date(bill.DateString || bill.Date);
+          if (startDate && billDate < new Date(startDate)) return false;
+          if (endDate && billDate > new Date(endDate)) return false;
+        }
+        return true;
+      })
       .map((bill) => {
         let dueDate = bill.DueDate;
         // Parse Microsoft JSON date format on API side
@@ -158,6 +176,14 @@ async function fetchFinancialData(accessToken, tenantId) {
   try {
     const txRes = await fetchWithRetry(accessToken, tenantId, 'BankTransactions');
     data.bankTransactions = (txRes.data.BankTransactions || [])
+      .filter((tx) => {
+        if (startDate || endDate) {
+          const txDate = new Date(tx.DateString || tx.Date);
+          if (startDate && txDate < new Date(startDate)) return false;
+          if (endDate && txDate > new Date(endDate)) return false;
+        }
+        return true;
+      })
       .slice(0, 20)
       .map((tx) => {
         let date = tx.DateString || tx.Date;
@@ -232,7 +258,8 @@ export default async function handler(req, res) {
   try {
     let { accessToken, tenantId } = await getValidXeroAccessToken();
 
-    const data = await fetchFinancialData(accessToken, tenantId);
+    const { startDate, endDate } = req.query;
+    const data = await fetchFinancialData(accessToken, tenantId, { startDate, endDate });
 
     res.status(200).json({
       success: true,
