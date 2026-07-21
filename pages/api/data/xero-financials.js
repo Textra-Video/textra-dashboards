@@ -173,27 +173,26 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     // Calculate totalReceivable from AUTHORISED invoices (outstanding)
     data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
 
-    // Calculate totalIncome from AUTHORISED ACCREC invoices only (posted/approved invoices)
-    // Exclude DRAFT, VOIDED, DELETED, SUBMITTED invoices to avoid counting test data or pending invoices
-    const authorisedAcrecInvoices = allInvoices.filter(inv =>
+    // Calculate totalIncome from ACCREC invoices, excluding only DRAFT and test data
+    const acrecInvoices = allInvoices.filter(inv =>
       inv.Type === 'ACCREC' &&
-      inv.Status === 'AUTHORISED' &&
+      inv.Status !== 'DRAFT' && // Exclude drafts
+      (inv.Total || 0) > 0 && // Exclude zero/negative amounts (credit notes)
+      !inv.InvoiceNumber.startsWith('CN-') && // Exclude credit notes
       isInvoiceInDateRange(inv, startDate, endDate)
     );
-    data.totalIncome = authorisedAcrecInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
+    data.totalIncome = acrecInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
 
-    console.log(`[Xero] Total Income: £${data.totalIncome} from ${authorisedAcrecInvoices.length} AUTHORISED ACCREC invoices`);
-
-    // Debug: breakdown by status
-    const acrecByStatus = {};
-    allAcrecInvoices.forEach(inv => {
-      if (!acrecByStatus[inv.Status]) acrecByStatus[inv.Status] = { count: 0, total: 0 };
-      acrecByStatus[inv.Status].count += 1;
-      acrecByStatus[inv.Status].total += inv.Total || 0;
+    // Debug: Show what statuses we're finding
+    const statusBreakdown = {};
+    allInvoices.filter(inv => inv.Type === 'ACCREC').forEach(inv => {
+      if (!statusBreakdown[inv.Status]) statusBreakdown[inv.Status] = 0;
+      statusBreakdown[inv.Status]++;
     });
-    console.log('[Xero] ACCREC revenue by status:', acrecByStatus);
+    console.log('[Xero] ACCREC invoice statuses found:', statusBreakdown);
+    console.log(`[Xero] Total Income: £${data.totalIncome} from ${acrecInvoices.length} invoices (excluding DRAFT)`);
     console.log(`[Xero] Outstanding (AUTHORISED): £${data.totalReceivable}, dateRange:`, { startDate, endDate });
-    console.log('[Xero] Invoice count: Total ACCREC=' + allAcrecInvoices.length + ', AUTHORISED=' + data.invoices.length);
+    console.log('[Xero] Invoice count: Total ACCREC=' + allInvoices.filter(i => i.Type === 'ACCREC').length + ', AUTHORISED=' + data.invoices.length);
   } catch (err) {
     console.error('Invoices error:', err.response?.status, err.response?.data?.Detail);
     data.invoices = [];
