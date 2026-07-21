@@ -326,35 +326,34 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     data.bankTransactions = [];
   }
 
-  // P&L Report - Xero nests real data under data.Reports[0].Rows, with
-  // sections (Income, Less Operating Expenses, ...) each containing a
-  // SummaryRow labelled "Total X", plus a final top-level "Net Profit" row.
+  // P&L Report - Calculate from filtered invoices and expenses.
+  // Xero's P&L report API doesn't respect date filtering the same way as invoices,
+  // so we derive P&L from the date-filtered invoice/payment data instead.
   try {
-    const reportParams = {};
-    if (startDate) reportParams.fromDate = startDate;
-    if (endDate) reportParams.toDate = endDate;
-    const plRes = await fetchWithRetry(accessToken, tenantId, 'Reports/ProfitAndLoss', reportParams);
-    const report = plRes.data.Reports?.[0];
-    const flatRows = flattenReportRows(report?.Rows || []);
+    // Revenue = sum of filtered invoices (already calculated as totalIncome)
+    let revenue = data.totalIncome || 0;
 
-    let revenue = findRowValue(flatRows, ['total income', 'total revenue']);
-    let expenses = findRowValue(flatRows, ['total operating expenses', 'total expenses', 'total cost of sales']);
-    let netIncome = findRowValue(flatRows, ['net profit', 'net income']);
-
-    // Floor revenue to 0 to prevent negative revenue when credit notes exceed invoices
-    revenue = Math.max(0, revenue);
-
-    // Recalculate netIncome if it wasn't found in the report
-    if (!netIncome) {
-      netIncome = revenue - expenses;
+    // Expenses = sum of bill payments in the filtered date range
+    let expenses = 0;
+    if (data.payments && Array.isArray(data.payments)) {
+      expenses = data.payments.reduce((sum, payment) => {
+        // Payment invoices have dueDate field; check if within range
+        const paymentDate = payment.dueDate ? new Date(payment.dueDate) : null;
+        if (!paymentDate) return sum;
+        if (startDate && paymentDate < new Date(startDate)) return sum;
+        if (endDate && paymentDate > new Date(endDate)) return sum;
+        return sum + (payment.amount || 0);
+      }, 0);
     }
 
-    data.revenue = revenue;
-    data.expenses = Math.max(0, expenses); // Also floor expenses
-    data.netIncome = Math.max(0, netIncome); // Floor netIncome to prevent negative display
-    console.log('[Xero] P&L Report:', { revenue, expenses, netIncome, calculated: revenue - expenses });
+    const netIncome = Math.max(0, revenue - expenses);
+
+    data.revenue = Math.max(0, revenue);
+    data.expenses = Math.max(0, expenses);
+    data.netIncome = netIncome;
+    console.log('[Xero] P&L Calculated:', { revenue, expenses, netIncome });
   } catch (err) {
-    console.error('P&L error:', err.response?.status, err.response?.data?.Detail);
+    console.error('P&L error:', err.message);
     data.revenue = 0;
     data.expenses = 0;
     data.netIncome = 0;
