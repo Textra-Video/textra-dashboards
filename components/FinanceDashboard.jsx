@@ -4,25 +4,9 @@ import axios from 'axios';
 // Info tooltip component
 function InfoTooltip({ text }) {
   return (
-    <span
-      style={{
-        display: 'inline-block',
-        width: '18px',
-        height: '18px',
-        borderRadius: '50%',
-        backgroundColor: 'var(--muted)',
-        color: 'white',
-        fontSize: '12px',
-        lineHeight: '18px',
-        textAlign: 'center',
-        fontWeight: 'bold',
-        cursor: 'help',
-        marginLeft: '6px',
-        position: 'relative',
-      }}
-      title={text}
-    >
-      i
+    <span className="info-tooltip" tabIndex={0}>
+      <span className="info-icon">i</span>
+      <span className="info-tooltip-text">{text}</span>
     </span>
   );
 }
