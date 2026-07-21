@@ -173,14 +173,20 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
     // Calculate totalReceivable from AUTHORISED invoices (outstanding)
     data.totalReceivable = data.invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
 
-    // Calculate totalIncome - use same filter as displayInvoices (AUTHORISED only) but sum ALL matching invoices
-    // This captures total revenue regardless of payment status, but only posted/approved invoices
+    // Calculate totalIncome - sum all posted revenue: AUTHORISED (unpaid) + PAID (already paid)
+    // Exclude DRAFT, VOIDED, DELETED - these are not real revenue
     const incomeInvoices = allInvoices.filter(inv =>
       inv.Type === 'ACCREC' &&
-      inv.Status === 'AUTHORISED' &&
+      (inv.Status === 'AUTHORISED' || inv.Status === 'PAID') &&
       isInvoiceInDateRange(inv, startDate, endDate)
     );
     data.totalIncome = incomeInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
+
+    // Log all invoice details for debugging
+    console.log('[Xero] All ACCREC invoices by status:');
+    allInvoices.filter(inv => inv.Type === 'ACCREC').forEach(inv => {
+      console.log(`  ${inv.InvoiceNumber}: Status=${inv.Status}, Total=${inv.Total}, DateString=${inv.DateString}`);
+    });
 
     // Debug: Log invoice details
     const allAcrec = allInvoices.filter(inv => inv.Type === 'ACCREC');
