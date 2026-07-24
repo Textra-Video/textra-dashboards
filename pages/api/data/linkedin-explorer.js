@@ -55,21 +55,17 @@ export default async function handler(req, res) {
 
       const queries = [
         {
-          name: 'organizationalPageAnalytics with dateRange',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageAnalytics?organizationalPage=urn%3Ali%3Aorganization%3A108355800&q=dateRange&dateRange.start=${startDate}&dateRange.end=${endDate}`,
+          name: 'organizationalEntityFollowerStatistics',
+          url: `https://api.linkedin.com/rest/organizationalEntityFollowerStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(organizationUrn)}`,
         },
         {
-          name: 'organizationalPageAnalytics simple',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageAnalytics?organizationalPage=urn%3Ali%3Aorganization%3A108355800`,
+          name: 'organizationalEntityShareStatistics',
+          url: `https://api.linkedin.com/rest/organizationalEntityShareStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(organizationUrn)}`,
         },
         {
-          name: 'organizationalPageEdgeAnalytics',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?organizationalPage=urn%3Ali%3Aorganization%3A108355800`,
+          name: 'organizationPageStatistics',
+          url: `https://api.linkedin.com/rest/organizationPageStatistics?q=organization&organization=${encodeURIComponent(organizationUrn)}`,
         },
-        {
-          name: 'pageAnalytics',
-          url: `https://api.linkedin.com/rest/pageAnalytics?q=organization&organization=urn%3Ali%3Aorganization%3A108355800`,
-        }
       ];
 
       for (const query of queries) {
@@ -95,33 +91,41 @@ export default async function handler(req, res) {
             status: res.status,
             keys: Object.keys(data).join(', '),
             elementCount: data.elements?.length || 0,
-            preview: text.substring(0, 300),
+            preview: text.substring(0, 600),
           });
 
-          // Try to extract metrics from various response structures
           if (data.elements && Array.isArray(data.elements) && data.elements.length > 0) {
             const element = data.elements[0];
-            const elementKeys = Object.keys(element).join(', ');
-            debugResponses[debugResponses.length - 1].elementKeys = elementKeys;
+            debugResponses[debugResponses.length - 1].elementKeys = Object.keys(element).join(', ');
+            debugResponses[debugResponses.length - 1].elementPreview = JSON.stringify(element).substring(0, 400);
 
-            // Try common field names
-            if (element.impressionCount) monthlyImpressions = element.impressionCount;
-            if (element.likeCount) followers = element.likeCount;
+            // organizationalEntityFollowerStatistics: elements[].followerCounts.{organicFollowerCount,paidFollowerCount}
+            if (element.followerCounts) {
+              followers = (element.followerCounts.organicFollowerCount || 0) + (element.followerCounts.paidFollowerCount || 0);
+            }
+
+            // organizationalEntityShareStatistics: elements[].totalShareStatistics.{impressionCount,shareCount,likeCount,commentCount,clickCount}
+            if (element.totalShareStatistics) {
+              monthlyImpressions = element.totalShareStatistics.impressionCount || 0;
+              topPostReach = element.totalShareStatistics.uniqueImpressionsCount || topPostReach;
+              const engagement = element.totalShareStatistics.engagement;
+              if (engagement !== undefined) {
+                engagementRate = (engagement * 100).toFixed(1) + '%';
+              }
+            }
+
+            // organizationPageStatistics: elements[].totalPageStatistics.views.allPageViews.pageViews
+            if (element.totalPageStatistics?.views?.allPageViews?.pageViews) {
+              topPostReach = element.totalPageStatistics.views.allPageViews.pageViews;
+            }
+
+            // Fallback generic field names
             if (element.followerCount) followers = element.followerCount;
-            if (element.pageImpressionsCount) monthlyImpressions = element.pageImpressionsCount;
+            if (element.impressionCount) monthlyImpressions = element.impressionCount;
 
             if (monthlyImpressions > 0 || followers > 0) {
               console.log(`[LinkedIn] Found data in ${query.name}!`);
-              break;
             }
-          }
-
-          if (data.impressionCount) monthlyImpressions = data.impressionCount;
-          if (data.likeCount) followers = data.likeCount;
-
-          if (monthlyImpressions > 0 || followers > 0) {
-            console.log(`[LinkedIn] Found data in root of ${query.name}!`);
-            break;
           }
         } catch (queryErr) {
           console.log(`[LinkedIn] ${query.name} error:`, queryErr.message);
