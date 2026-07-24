@@ -30,21 +30,26 @@ export default async function handler(req, res) {
     // Fetch organizational page edge analytics (followers, impressions, reach)
     // This uses the dmaOrganizationalPageEdgeAnalytics endpoint
     try {
-      const edgeRes = await fetch(
-        `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}&dimension=MEMBER_COUNTRY&projection=(elements*(followerCount,followerCountByTimeInterval,pageImpressionsCount))`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/vnd.linkedin.v2+json',
-          },
-        }
-      );
+      const edgeUrl = `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}&dimension=MEMBER_COUNTRY&projection=(elements*(followerCount,followerCountByTimeInterval,pageImpressionsCount))`;
+      console.log('[LinkedIn] Fetching edge analytics...');
+
+      const edgeRes = await fetch(edgeUrl, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/vnd.linkedin.v2+json',
+          'LinkedIn-Version': '202410',
+        },
+      });
+
+      console.log('[LinkedIn] Edge response status:', edgeRes.status);
+      const edgeData = await edgeRes.json();
+      console.log('[LinkedIn] Edge analytics response:', JSON.stringify(edgeData).substring(0, 200));
 
       if (edgeRes.ok) {
-        const data = await edgeRes.json();
-        if (data.elements && data.elements.length > 0) {
-          followers = data.elements[0]?.followerCount || 0;
-          monthlyImpressions = data.elements[0]?.pageImpressionsCount || 0;
+        if (edgeData.elements && edgeData.elements.length > 0) {
+          followers = edgeData.elements[0]?.followerCount || 0;
+          monthlyImpressions = edgeData.elements[0]?.pageImpressionsCount || 0;
+          console.log('[LinkedIn] Fetched followers:', followers, 'impressions:', monthlyImpressions);
         }
       } else if (edgeRes.status === 403) {
         console.log('[LinkedIn] Access denied to edge analytics - token may not have proper permissions');
