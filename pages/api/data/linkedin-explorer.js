@@ -47,132 +47,77 @@ export default async function handler(req, res) {
       console.log('[LinkedIn] Could not verify organization:', err.message);
     }
 
-    // Try multiple endpoint variations with proper date ranges
-    try {
-      // Calculate date range (last 30 days in milliseconds)
-      const endDate = Date.now();
-      const startDate = endDate - (30 * 24 * 60 * 60 * 1000);
+    // Query the actual documented DMA endpoints for this app's granted scope
+    // (r_dma_admin_pages_content). Every real resource here is dma-prefixed;
+    // we capture the FULL response body (untruncated) so any validation error
+    // tells us exactly which required param is missing, instead of guessing.
+    const dmaQueries = [
+      {
+        name: 'dmaOrganizationalPageEdgeAnalytics (dimension)',
+        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}`,
+      },
+      {
+        name: 'dmaOrganizationalPageEdgeAnalytics (trend)',
+        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationUrn)}`,
+      },
+      {
+        name: 'dmaOrganizationalPageContentAnalytics (postGestures)',
+        url: `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&organizationalPage=${encodeURIComponent(organizationUrn)}`,
+      },
+      {
+        name: 'dmaOrganizationalPageContentAnalytics (trend)',
+        url: `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationUrn)}`,
+      },
+      {
+        name: 'dmaOrganizationalPageFollows (followee)',
+        url: `https://api.linkedin.com/rest/dmaOrganizationalPageFollows?q=followee&followee=${encodeURIComponent(organizationUrn)}`,
+      },
+      {
+        name: 'dmaOrganizationalPageVisitorOfTheDay',
+        url: `https://api.linkedin.com/rest/dmaOrganizationalPageVisitorOfTheDay?q=organizationalPage&organizationalPage=${encodeURIComponent(organizationUrn)}`,
+      },
+    ];
 
-      const queries = [
-        {
-          name: 'organizationalEntityFollowerStatistics',
-          url: `https://api.linkedin.com/rest/organizationalEntityFollowerStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(organizationUrn)}`,
-        },
-        {
-          name: 'organizationalEntityShareStatistics',
-          url: `https://api.linkedin.com/rest/organizationalEntityShareStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(organizationUrn)}`,
-        },
-        {
-          name: 'organizationPageStatistics',
-          url: `https://api.linkedin.com/rest/organizationPageStatistics?q=organization&organization=${encodeURIComponent(organizationUrn)}`,
-        },
-      ];
-
-      for (const query of queries) {
-        console.log(`[LinkedIn] Trying ${query.name}...`);
-        try {
-          const res = await fetch(query.url, {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Accept': 'application/vnd.linkedin.v2+json',
-              'LinkedIn-Version': '202405',
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-            },
-          });
-
-          console.log(`[LinkedIn] ${query.name} status: ${res.status}`);
-
-          const text = await res.text();
-          const data = JSON.parse(text);
-
-          // Store response for debugging
-          debugResponses.push({
-            endpoint: query.name,
-            status: res.status,
-            keys: Object.keys(data).join(', '),
-            elementCount: data.elements?.length || 0,
-            preview: text.substring(0, 600),
-          });
-
-          if (data.elements && Array.isArray(data.elements) && data.elements.length > 0) {
-            const element = data.elements[0];
-            debugResponses[debugResponses.length - 1].elementKeys = Object.keys(element).join(', ');
-            debugResponses[debugResponses.length - 1].elementPreview = JSON.stringify(element).substring(0, 400);
-
-            // organizationalEntityFollowerStatistics: elements[].followerCounts.{organicFollowerCount,paidFollowerCount}
-            if (element.followerCounts) {
-              followers = (element.followerCounts.organicFollowerCount || 0) + (element.followerCounts.paidFollowerCount || 0);
-            }
-
-            // organizationalEntityShareStatistics: elements[].totalShareStatistics.{impressionCount,shareCount,likeCount,commentCount,clickCount}
-            if (element.totalShareStatistics) {
-              monthlyImpressions = element.totalShareStatistics.impressionCount || 0;
-              topPostReach = element.totalShareStatistics.uniqueImpressionsCount || topPostReach;
-              const engagement = element.totalShareStatistics.engagement;
-              if (engagement !== undefined) {
-                engagementRate = (engagement * 100).toFixed(1) + '%';
-              }
-            }
-
-            // organizationPageStatistics: elements[].totalPageStatistics.views.allPageViews.pageViews
-            if (element.totalPageStatistics?.views?.allPageViews?.pageViews) {
-              topPostReach = element.totalPageStatistics.views.allPageViews.pageViews;
-            }
-
-            // Fallback generic field names
-            if (element.followerCount) followers = element.followerCount;
-            if (element.impressionCount) monthlyImpressions = element.impressionCount;
-
-            if (monthlyImpressions > 0 || followers > 0) {
-              console.log(`[LinkedIn] Found data in ${query.name}!`);
-            }
-          }
-        } catch (queryErr) {
-          console.log(`[LinkedIn] ${query.name} error:`, queryErr.message);
-          continue;
-        }
-      }
-
-      if (followers === 0 && monthlyImpressions === 0) {
-        console.log('[LinkedIn] No data found in any endpoint - checking if token/org is misconfigured');
-      }
-    } catch (err) {
-      console.log('[LinkedIn] Error in analytics queries:', err.message);
-    }
-
-    // Fetch organizational page content analytics (engagement, posts)
-    try {
-      const contentRes = await fetch(
-        `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&organizationalPage=${encodeURIComponent(organizationUrn)}&projection=(elements*(engagement,likes,comments,shares))`,
-        {
+    for (const query of dmaQueries) {
+      console.log(`[LinkedIn] Trying ${query.name}...`);
+      try {
+        const res = await fetch(query.url, {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Accept': 'application/vnd.linkedin.v2+json',
             'LinkedIn-Version': '202405',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
           },
-        }
-      );
+        });
 
-      if (contentRes.ok) {
-        const data = await contentRes.json();
-        if (data.elements && data.elements.length > 0) {
-          // Calculate engagement metrics from content data
-          const engagement = data.elements.reduce((sum, el) => sum + (el.engagement || 0), 0);
-          const totalInteractions = data.elements.reduce((sum, el) => sum + ((el.likes || 0) + (el.comments || 0) + (el.shares || 0)), 0);
+        const text = await res.text();
+        let data = {};
+        try { data = JSON.parse(text); } catch { /* non-JSON body */ }
 
-          if (engagement > 0) {
-            engagementRate = ((totalInteractions / engagement) * 100).toFixed(1) + '%';
+        console.log(`[LinkedIn] ${query.name} status: ${res.status}, body: ${text}`);
+
+        debugResponses.push({
+          endpoint: query.name,
+          status: res.status,
+          fullBody: text, // untruncated so exact error/schema is visible
+        });
+
+        if (res.ok && Array.isArray(data.elements) && data.elements.length > 0) {
+          const element = data.elements[0];
+
+          if (element.followerCounts) {
+            followers = (element.followerCounts.organicFollowerCount || 0) + (element.followerCounts.paidFollowerCount || 0);
           }
-
-          topPostReach = data.elements[0]?.engagement || 0;
+          if (element.totalShareStatistics) {
+            monthlyImpressions = element.totalShareStatistics.impressionCount || monthlyImpressions;
+          }
+          if (element.followerCount) followers = element.followerCount;
+          if (element.impressionCount) monthlyImpressions = element.impressionCount;
         }
-      } else if (contentRes.status === 403) {
-        console.log('[LinkedIn] Access denied to content analytics');
-      } else {
-        console.log('[LinkedIn] Content analytics error:', contentRes.status, contentRes.statusText);
+      } catch (queryErr) {
+        console.log(`[LinkedIn] ${query.name} error:`, queryErr.message);
+        debugResponses.push({ endpoint: query.name, error: queryErr.message });
       }
-    } catch (err) {
-      console.log('[LinkedIn] Could not fetch content analytics:', err.message);
     }
 
     // Return available LinkedIn metrics structure with fetched data
