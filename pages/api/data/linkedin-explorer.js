@@ -18,62 +18,77 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch real LinkedIn Analytics data
     const accessToken = process.env.LINKEDIN_ACCESS_TOKEN;
 
-    // Get organization ID first (required for Analytics API)
-    const orgRes = await fetch('https://api.linkedin.com/v2/me', {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!orgRes.ok) {
-      if (orgRes.status === 403) {
-        return res.status(403).json({
-          error: 'LinkedIn Analytics API access denied',
-          message: 'Your LinkedIn app needs Analytics API access approval',
-          nextSteps: [
-            '1. Go to LinkedIn Developers portal',
-            '2. Open your app > Products tab',
-            '3. Find "Analytics API" and click "Request access"',
-            '4. Wait for LinkedIn approval (usually instant)',
-            '5. Refresh dashboard once approved'
-          ],
-          status: 403,
-        });
-      }
-      throw new Error(`LinkedIn API error: ${orgRes.status} ${orgRes.statusText}`);
-    }
-
-    // Fetch follower stats
+    // Initialize metrics with default values
     let followers = 0;
     let monthlyImpressions = 0;
     let engagementRate = '0%';
     let topPostReach = 0;
 
+    // Fetch organizational page edge analytics (followers, impressions, reach)
+    // This uses the dmaOrganizationalPageEdgeAnalytics endpoint
     try {
-      // Try to fetch organization analytics (requires proper org ID)
-      // This endpoint requires organization URN: urn:li:organization:XXXXXX
-      const analyticsRes = await fetch('https://api.linkedin.com/v2/organizationalEntityFollowerStatistics?q=organizationalEntity', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Accept': 'application/json',
-        },
-      });
-
-      if (analyticsRes.ok) {
-        const data = await analyticsRes.json();
-        if (data.elements && data.elements.length > 0) {
-          followers = data.elements[0]?.followerCounts?.followerCount || 0;
+      const edgeRes = await fetch(
+        'https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&dimension=MEMBER_COUNTRY&projection=(elements*(followerCount,followerCountByTimeInterval,pageImpressionsCount))',
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/vnd.linkedin.v2+json',
+          },
         }
+      );
+
+      if (edgeRes.ok) {
+        const data = await edgeRes.json();
+        if (data.elements && data.elements.length > 0) {
+          followers = data.elements[0]?.followerCount || 0;
+          monthlyImpressions = data.elements[0]?.pageImpressionsCount || 0;
+        }
+      } else if (edgeRes.status === 403) {
+        console.log('[LinkedIn] Access denied to edge analytics - token may not have proper permissions');
+      } else {
+        console.log('[LinkedIn] Edge analytics error:', edgeRes.status, edgeRes.statusText);
       }
     } catch (err) {
-      console.log('[LinkedIn] Could not fetch follower stats:', err.message);
+      console.log('[LinkedIn] Could not fetch edge analytics:', err.message);
     }
 
-    // Return available LinkedIn metrics structure with real data (or API call results)
+    // Fetch organizational page content analytics (engagement, posts)
+    try {
+      const contentRes = await fetch(
+        'https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&projection=(elements*(engagement,likes,comments,shares))',
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/vnd.linkedin.v2+json',
+          },
+        }
+      );
+
+      if (contentRes.ok) {
+        const data = await contentRes.json();
+        if (data.elements && data.elements.length > 0) {
+          // Calculate engagement metrics from content data
+          const engagement = data.elements.reduce((sum, el) => sum + (el.engagement || 0), 0);
+          const totalInteractions = data.elements.reduce((sum, el) => sum + ((el.likes || 0) + (el.comments || 0) + (el.shares || 0)), 0);
+
+          if (engagement > 0) {
+            engagementRate = ((totalInteractions / engagement) * 100).toFixed(1) + '%';
+          }
+
+          topPostReach = data.elements[0]?.engagement || 0;
+        }
+      } else if (contentRes.status === 403) {
+        console.log('[LinkedIn] Access denied to content analytics');
+      } else {
+        console.log('[LinkedIn] Content analytics error:', contentRes.status, contentRes.statusText);
+      }
+    } catch (err) {
+      console.log('[LinkedIn] Could not fetch content analytics:', err.message);
+    }
+
+    // Return available LinkedIn metrics structure with fetched data
     const availableMetrics = {
       success: true,
       message: 'LinkedIn Analytics - Available Metrics',
