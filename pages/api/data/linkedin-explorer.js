@@ -27,34 +27,52 @@ export default async function handler(req, res) {
     let engagementRate = '0%';
     let topPostReach = 0;
 
-    // Try to fetch organizational page edge analytics directly
-    // Skip /me validation as token might only work for specific endpoints
+    // Try multiple endpoint variations to find working query
     try {
-      const edgeUrl = `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}`;
-      console.log('[LinkedIn] Fetching edge analytics...');
+      // Try with timeInterval dimension (followers over time)
+      const queries = [
+        { name: 'timeInterval', url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=timeInterval&organizationalPage=${encodeURIComponent(organizationUrn)}` },
+        { name: 'dimension', url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}&dimension=FollowerCountsByFollowerOrigin` },
+        { name: 'trend', url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationUrn)}` },
+      ];
 
-      const edgeRes = await fetch(edgeUrl, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Accept': 'application/vnd.linkedin.v2+json',
-        },
-      });
+      for (const query of queries) {
+        console.log(`[LinkedIn] Trying ${query.name} endpoint...`);
+        try {
+          const edgeRes = await fetch(query.url, {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Accept': 'application/vnd.linkedin.v2+json',
+              'LinkedIn-Version': '202410',
+            },
+          });
 
-      console.log('[LinkedIn] Edge response status:', edgeRes.status);
-      const edgeData = await edgeRes.json();
-      console.log('[LinkedIn] Edge response body:', JSON.stringify(edgeData).substring(0, 500));
+          console.log(`[LinkedIn] ${query.name} response status:`, edgeRes.status);
+          const edgeData = await edgeRes.json();
+          console.log(`[LinkedIn] ${query.name} response:`, JSON.stringify(edgeData).substring(0, 300));
 
-      if (edgeRes.ok && edgeData.elements) {
-        if (edgeData.elements.length > 0) {
-          followers = edgeData.elements[0]?.followerCount || 0;
-          monthlyImpressions = edgeData.elements[0]?.pageImpressionsCount || 0;
-          console.log('[LinkedIn] Successfully fetched - followers:', followers, 'impressions:', monthlyImpressions);
+          if (edgeRes.ok && edgeData.elements && edgeData.elements.length > 0) {
+            // Extract data based on response structure
+            const element = edgeData.elements[0];
+            followers = element?.followerCount || element?.followerCountsByFollowerOrigin?.organizationFollowerCount || 0;
+            monthlyImpressions = element?.pageImpressionsCount || element?.impressionCount || 0;
+
+            if (followers > 0 || monthlyImpressions > 0) {
+              console.log(`[LinkedIn] Got data from ${query.name} - followers: ${followers}, impressions: ${monthlyImpressions}`);
+              break; // Exit loop if we found data
+            }
+          }
+        } catch (queryErr) {
+          console.log(`[LinkedIn] ${query.name} error:`, queryErr.message);
+          continue;
         }
-      } else {
-        console.log('[LinkedIn] API Error:', edgeRes.status, edgeData?.serviceErrorCode || edgeData?.message);
+      }
+
+      if (followers === 0 && monthlyImpressions === 0) {
+        console.log('[LinkedIn] No data found in any endpoint variation');
       }
     } catch (err) {
-      console.log('[LinkedIn] Error fetching edge analytics:', err.message);
+      console.log('[LinkedIn] Error in edge analytics:', err.message);
     }
 
     // Fetch organizational page content analytics (engagement, posts)
