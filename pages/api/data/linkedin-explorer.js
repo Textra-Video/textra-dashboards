@@ -26,6 +26,7 @@ export default async function handler(req, res) {
     let monthlyImpressions = 0;
     let engagementRate = '0%';
     let topPostReach = 0;
+    let debugResponses = [];  // Store endpoint responses for debugging
 
     // First, verify organization exists and get page info
     try {
@@ -84,17 +85,22 @@ export default async function handler(req, res) {
           console.log(`[LinkedIn] ${query.name} status: ${res.status}`);
 
           const text = await res.text();
-          console.log(`[LinkedIn] ${query.name} response preview:`, text.substring(0, 800));
-
           const data = JSON.parse(text);
 
-          // Log what we got back
-          console.log(`[LinkedIn] ${query.name} keys:`, Object.keys(data).join(', '));
+          // Store response for debugging
+          debugResponses.push({
+            endpoint: query.name,
+            status: res.status,
+            keys: Object.keys(data).join(', '),
+            elementCount: data.elements?.length || 0,
+            preview: text.substring(0, 300),
+          });
 
           // Try to extract metrics from various response structures
           if (data.elements && Array.isArray(data.elements) && data.elements.length > 0) {
             const element = data.elements[0];
-            console.log(`[LinkedIn] ${query.name} first element keys:`, Object.keys(element).join(', '));
+            const elementKeys = Object.keys(element).join(', ');
+            debugResponses[debugResponses.length - 1].elementKeys = elementKeys;
 
             // Try common field names
             if (element.impressionCount) monthlyImpressions = element.impressionCount;
@@ -103,7 +109,7 @@ export default async function handler(req, res) {
             if (element.pageImpressionsCount) monthlyImpressions = element.pageImpressionsCount;
 
             if (monthlyImpressions > 0 || followers > 0) {
-              console.log(`[LinkedIn] Found data in ${query.name}! Impressions: ${monthlyImpressions}, Followers: ${followers}`);
+              console.log(`[LinkedIn] Found data in ${query.name}!`);
               break;
             }
           }
@@ -172,6 +178,7 @@ export default async function handler(req, res) {
         tokenLength: process.env.LINKEDIN_ACCESS_TOKEN?.length || 0,
         followersFound: followers,
         impressionsFound: monthlyImpressions,
+        endpointResponses: debugResponses,
       },
       summary: {
         followers,
