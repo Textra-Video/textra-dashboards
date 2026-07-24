@@ -45,23 +45,28 @@ export default async function handler(req, res) {
       console.log('[LinkedIn] Could not verify organization:', err.message);
     }
 
-    // Try multiple endpoint variations to find working query
+    // Try multiple endpoint variations with proper date ranges
     try {
+      // Calculate date range (last 30 days in milliseconds)
+      const endDate = Date.now();
+      const startDate = endDate - (30 * 24 * 60 * 60 * 1000);
+
       const queries = [
         {
-          name: 'follower count',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=urn%3Ali%3Aorganization%3A108355800&dimensions=List(FollowerCount)`,
-          fields: 'followerCount'
+          name: 'organizationalPageAnalytics with dateRange',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageAnalytics?organizationalPage=urn%3Ali%3Aorganization%3A108355800&q=dateRange&dateRange.start=${startDate}&dateRange.end=${endDate}`,
         },
         {
-          name: 'page details',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?organizationalPage=urn%3Ali%3Aorganization%3A108355800`,
-          fields: 'none'
-        },
-        {
-          name: 'analytics summary',
+          name: 'organizationalPageAnalytics simple',
           url: `https://api.linkedin.com/rest/dmaOrganizationalPageAnalytics?organizationalPage=urn%3Ali%3Aorganization%3A108355800`,
-          fields: 'summary'
+        },
+        {
+          name: 'organizationalPageEdgeAnalytics',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?organizationalPage=urn%3Ali%3Aorganization%3A108355800`,
+        },
+        {
+          name: 'pageAnalytics',
+          url: `https://api.linkedin.com/rest/pageAnalytics?q=organization&organization=urn%3Ali%3Aorganization%3A108355800`,
         }
       ];
 
@@ -79,26 +84,35 @@ export default async function handler(req, res) {
           console.log(`[LinkedIn] ${query.name} status: ${res.status}`);
 
           const text = await res.text();
-          console.log(`[LinkedIn] ${query.name} response:`, text.substring(0, 600));
+          console.log(`[LinkedIn] ${query.name} response preview:`, text.substring(0, 800));
 
           const data = JSON.parse(text);
 
-          // Try to extract follower count from various possible locations
-          if (data.followerCount) {
-            followers = data.followerCount;
-            console.log('[LinkedIn] Found followerCount in root:', followers);
-          }
-          if (data.elements?.[0]?.followerCount) {
-            followers = data.elements[0].followerCount;
-            console.log('[LinkedIn] Found followerCount in elements:', followers);
-          }
-          if (data.elements?.[0]?.value?.followerCount) {
-            followers = data.elements[0].value.followerCount;
-            console.log('[LinkedIn] Found followerCount in elements[0].value:', followers);
+          // Log what we got back
+          console.log(`[LinkedIn] ${query.name} keys:`, Object.keys(data).join(', '));
+
+          // Try to extract metrics from various response structures
+          if (data.elements && Array.isArray(data.elements) && data.elements.length > 0) {
+            const element = data.elements[0];
+            console.log(`[LinkedIn] ${query.name} first element keys:`, Object.keys(element).join(', '));
+
+            // Try common field names
+            if (element.impressionCount) monthlyImpressions = element.impressionCount;
+            if (element.likeCount) followers = element.likeCount;
+            if (element.followerCount) followers = element.followerCount;
+            if (element.pageImpressionsCount) monthlyImpressions = element.pageImpressionsCount;
+
+            if (monthlyImpressions > 0 || followers > 0) {
+              console.log(`[LinkedIn] Found data in ${query.name}! Impressions: ${monthlyImpressions}, Followers: ${followers}`);
+              break;
+            }
           }
 
-          if (followers > 0) {
-            console.log('[LinkedIn] Successfully found follower data');
+          if (data.impressionCount) monthlyImpressions = data.impressionCount;
+          if (data.likeCount) followers = data.likeCount;
+
+          if (monthlyImpressions > 0 || followers > 0) {
+            console.log(`[LinkedIn] Found data in root of ${query.name}!`);
             break;
           }
         } catch (queryErr) {
@@ -107,8 +121,8 @@ export default async function handler(req, res) {
         }
       }
 
-      if (followers === 0) {
-        console.log('[LinkedIn] Could not retrieve any analytics data - token may lack required scopes or organization has no analytics data');
+      if (followers === 0 && monthlyImpressions === 0) {
+        console.log('[LinkedIn] No data found in any endpoint - checking if token/org is misconfigured');
       }
     } catch (err) {
       console.log('[LinkedIn] Error in analytics queries:', err.message);
