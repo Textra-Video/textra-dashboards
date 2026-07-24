@@ -44,12 +44,23 @@ export default async function handler(req, res) {
               'Authorization': `Bearer ${accessToken}`,
               'Accept': 'application/vnd.linkedin.v2+json',
               'LinkedIn-Version': '202410',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
             },
           });
 
-          console.log(`[LinkedIn] ${query.name} response status:`, edgeRes.status);
-          const edgeData = await edgeRes.json();
-          console.log(`[LinkedIn] ${query.name} response:`, JSON.stringify(edgeData).substring(0, 300));
+          console.log(`[LinkedIn] ${query.name} status: ${edgeRes.status}, content-type: ${edgeRes.headers.get('content-type')}`);
+
+          const responseText = await edgeRes.text();
+          console.log(`[LinkedIn] ${query.name} response body:`, responseText.substring(0, 500));
+
+          let edgeData = {};
+          try {
+            edgeData = JSON.parse(responseText);
+          } catch (parseErr) {
+            console.log(`[LinkedIn] ${query.name} JSON parse error:`, parseErr.message);
+            continue;
+          }
 
           if (edgeRes.ok && edgeData.elements && edgeData.elements.length > 0) {
             // Extract data based on response structure
@@ -61,6 +72,8 @@ export default async function handler(req, res) {
               console.log(`[LinkedIn] Got data from ${query.name} - followers: ${followers}, impressions: ${monthlyImpressions}`);
               break; // Exit loop if we found data
             }
+          } else {
+            console.log(`[LinkedIn] ${query.name} - no elements or not ok status. ok=${edgeRes.ok}, hasElements=${!!edgeData.elements}, elementCount=${edgeData.elements?.length || 0}`);
           }
         } catch (queryErr) {
           console.log(`[LinkedIn] ${query.name} error:`, queryErr.message);
