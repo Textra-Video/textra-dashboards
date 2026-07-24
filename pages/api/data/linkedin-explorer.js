@@ -19,6 +19,7 @@ export default async function handler(req, res) {
 
   try {
     const accessToken = process.env.LINKEDIN_ACCESS_TOKEN;
+    const organizationUrn = 'urn:li:organization:108355800'; // Textra Video
 
     // Initialize metrics with default values
     let followers = 0;
@@ -30,7 +31,7 @@ export default async function handler(req, res) {
     // This uses the dmaOrganizationalPageEdgeAnalytics endpoint
     try {
       const edgeRes = await fetch(
-        'https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&dimension=MEMBER_COUNTRY&projection=(elements*(followerCount,followerCountByTimeInterval,pageImpressionsCount))',
+        `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}&dimension=MEMBER_COUNTRY&projection=(elements*(followerCount,followerCountByTimeInterval,pageImpressionsCount))`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -57,7 +58,7 @@ export default async function handler(req, res) {
     // Fetch organizational page content analytics (engagement, posts)
     try {
       const contentRes = await fetch(
-        'https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&projection=(elements*(engagement,likes,comments,shares))',
+        `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&organizationalPage=${encodeURIComponent(organizationUrn)}&projection=(elements*(engagement,likes,comments,shares))`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
