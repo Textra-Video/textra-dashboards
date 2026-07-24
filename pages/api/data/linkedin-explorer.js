@@ -30,6 +30,20 @@ export default async function handler(req, res) {
     });
 
     if (!orgRes.ok) {
+      if (orgRes.status === 403) {
+        return res.status(403).json({
+          error: 'LinkedIn Analytics API access denied',
+          message: 'Your LinkedIn app needs Analytics API access approval',
+          nextSteps: [
+            '1. Go to LinkedIn Developers portal',
+            '2. Open your app > Products tab',
+            '3. Find "Analytics API" and click "Request access"',
+            '4. Wait for LinkedIn approval (usually instant)',
+            '5. Refresh dashboard once approved'
+          ],
+          status: 403,
+        });
+      }
       throw new Error(`LinkedIn API error: ${orgRes.status} ${orgRes.statusText}`);
     }
 
