@@ -47,77 +47,107 @@ export default async function handler(req, res) {
       console.log('[LinkedIn] Could not verify organization:', err.message);
     }
 
-    // Query the actual documented DMA endpoints for this app's granted scope
-    // (r_dma_admin_pages_content). Every real resource here is dma-prefixed;
-    // we capture the FULL response body (untruncated) so any validation error
-    // tells us exactly which required param is missing, instead of guessing.
-    const dmaQueries = [
-      {
-        name: 'dmaOrganizationalPageEdgeAnalytics (dimension)',
-        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}`,
-      },
-      {
-        name: 'dmaOrganizationalPageEdgeAnalytics (trend)',
-        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationUrn)}`,
-      },
-      {
-        name: 'dmaOrganizationalPageContentAnalytics (postGestures)',
-        url: `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&organizationalPage=${encodeURIComponent(organizationUrn)}`,
-      },
-      {
-        name: 'dmaOrganizationalPageContentAnalytics (trend)',
-        url: `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationUrn)}`,
-      },
-      {
-        name: 'dmaOrganizationalPageFollows (followee)',
-        url: `https://api.linkedin.com/rest/dmaOrganizationalPageFollows?q=followee&followee=${encodeURIComponent(organizationUrn)}`,
-      },
-      {
-        name: 'dmaOrganizationalPageVisitorOfTheDay',
-        url: `https://api.linkedin.com/rest/dmaOrganizationalPageVisitorOfTheDay?q=organizationalPage&organizationalPage=${encodeURIComponent(organizationUrn)}`,
-      },
-    ];
+    // Step 1: LinkedIn rejected version '202405' as NONEXISTENT_VERSION (426) -
+    // that version has aged out of their supported window. Probe a single
+    // endpoint against several recent YYYYMM versions to find one that's
+    // currently active, capturing full bodies so we know for certain rather
+    // than guessing indefinitely.
+    const versionCandidates = ['202506', '202503', '202412', '202409', '202312'];
+    const probeUrl = `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}`;
 
-    for (const query of dmaQueries) {
-      console.log(`[LinkedIn] Trying ${query.name}...`);
+    let workingVersion = null;
+    for (const version of versionCandidates) {
       try {
-        const res = await fetch(query.url, {
+        const res = await fetch(probeUrl, {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Accept': 'application/vnd.linkedin.v2+json',
-            'LinkedIn-Version': '202405',
+            'LinkedIn-Version': version,
             'Cache-Control': 'no-cache, no-store, must-revalidate',
           },
         });
-
         const text = await res.text();
-        let data = {};
-        try { data = JSON.parse(text); } catch { /* non-JSON body */ }
+        debugResponses.push({ endpoint: `version probe ${version}`, status: res.status, fullBody: text });
+        console.log(`[LinkedIn] version ${version} status ${res.status}: ${text}`);
 
-        console.log(`[LinkedIn] ${query.name} status: ${res.status}, body: ${text}`);
-
-        debugResponses.push({
-          endpoint: query.name,
-          status: res.status,
-          fullBody: text, // untruncated so exact error/schema is visible
-        });
-
-        if (res.ok && Array.isArray(data.elements) && data.elements.length > 0) {
-          const element = data.elements[0];
-
-          if (element.followerCounts) {
-            followers = (element.followerCounts.organicFollowerCount || 0) + (element.followerCounts.paidFollowerCount || 0);
-          }
-          if (element.totalShareStatistics) {
-            monthlyImpressions = element.totalShareStatistics.impressionCount || monthlyImpressions;
-          }
-          if (element.followerCount) followers = element.followerCount;
-          if (element.impressionCount) monthlyImpressions = element.impressionCount;
+        if (res.status !== 426) {
+          // Not a version-rejection error - this version is accepted by LinkedIn
+          workingVersion = version;
+          break;
         }
-      } catch (queryErr) {
-        console.log(`[LinkedIn] ${query.name} error:`, queryErr.message);
-        debugResponses.push({ endpoint: query.name, error: queryErr.message });
+      } catch (err) {
+        debugResponses.push({ endpoint: `version probe ${version}`, error: err.message });
       }
+    }
+
+    if (workingVersion) {
+      console.log(`[LinkedIn] Found working version: ${workingVersion}. Querying real endpoints...`);
+
+      const dmaQueries = [
+        {
+          name: 'dmaOrganizationalPageEdgeAnalytics (dimension)',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}`,
+        },
+        {
+          name: 'dmaOrganizationalPageEdgeAnalytics (trend)',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationUrn)}`,
+        },
+        {
+          name: 'dmaOrganizationalPageContentAnalytics (postGestures)',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&organizationalPage=${encodeURIComponent(organizationUrn)}`,
+        },
+        {
+          name: 'dmaOrganizationalPageContentAnalytics (trend)',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationUrn)}`,
+        },
+        {
+          name: 'dmaOrganizationalPageFollows (followee)',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageFollows?q=followee&followee=${encodeURIComponent(organizationUrn)}`,
+        },
+      ];
+
+      for (const query of dmaQueries) {
+        try {
+          const res = await fetch(query.url, {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Accept': 'application/vnd.linkedin.v2+json',
+              'LinkedIn-Version': workingVersion,
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+            },
+          });
+
+          const text = await res.text();
+          let data = {};
+          try { data = JSON.parse(text); } catch { /* non-JSON body */ }
+
+          console.log(`[LinkedIn] ${query.name} status: ${res.status}, body: ${text}`);
+
+          debugResponses.push({
+            endpoint: query.name,
+            status: res.status,
+            fullBody: text,
+          });
+
+          if (res.ok && Array.isArray(data.elements) && data.elements.length > 0) {
+            const element = data.elements[0];
+
+            if (element.followerCounts) {
+              followers = (element.followerCounts.organicFollowerCount || 0) + (element.followerCounts.paidFollowerCount || 0);
+            }
+            if (element.totalShareStatistics) {
+              monthlyImpressions = element.totalShareStatistics.impressionCount || monthlyImpressions;
+            }
+            if (element.followerCount) followers = element.followerCount;
+            if (element.impressionCount) monthlyImpressions = element.impressionCount;
+          }
+        } catch (queryErr) {
+          console.log(`[LinkedIn] ${query.name} error:`, queryErr.message);
+          debugResponses.push({ endpoint: query.name, error: queryErr.message });
+        }
+      }
+    } else {
+      console.log('[LinkedIn] No working version found among candidates');
     }
 
     // Return available LinkedIn metrics structure with fetched data
