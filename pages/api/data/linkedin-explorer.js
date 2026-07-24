@@ -152,6 +152,13 @@ export default async function handler(req, res) {
     const availableMetrics = {
       success: true,
       message: 'LinkedIn Analytics - Available Metrics',
+      debug: {
+        organization: 'urn:li:organization:108355800',
+        tokenConfigured: !!process.env.LINKEDIN_ACCESS_TOKEN,
+        tokenLength: process.env.LINKEDIN_ACCESS_TOKEN?.length || 0,
+        followersFound: followers,
+        impressionsFound: monthlyImpressions,
+      },
       summary: {
         followers,
         monthlyImpressions,
