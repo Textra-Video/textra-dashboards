@@ -35,6 +35,7 @@ export default async function handler(req, res) {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Accept': 'application/vnd.linkedin.v2+json',
+          'LinkedIn-Version': '202405',
         },
       });
       console.log('[LinkedIn] Organization verify status:', verifyRes.status);
@@ -78,6 +79,7 @@ export default async function handler(req, res) {
             headers: {
               'Authorization': `Bearer ${accessToken}`,
               'Accept': 'application/vnd.linkedin.v2+json',
+              'LinkedIn-Version': '202405',
               'Cache-Control': 'no-cache, no-store, must-revalidate',
             },
           });
@@ -142,6 +144,7 @@ export default async function handler(req, res) {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Accept': 'application/vnd.linkedin.v2+json',
+            'LinkedIn-Version': '202405',
           },
         }
       );
