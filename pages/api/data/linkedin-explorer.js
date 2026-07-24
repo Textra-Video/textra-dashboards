@@ -27,25 +27,11 @@ export default async function handler(req, res) {
     let engagementRate = '0%';
     let topPostReach = 0;
 
-    // First, test if the token works by calling /me endpoint
-    console.log('[LinkedIn] Testing token validity...');
-    const testRes = await fetch('https://api.linkedin.com/v2/me', {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json',
-      },
-    });
-    console.log('[LinkedIn] Token test status:', testRes.status);
-
-    if (!testRes.ok) {
-      console.log('[LinkedIn] Token is invalid/expired. Status:', testRes.status);
-      throw new Error(`Invalid token: ${testRes.status}`);
-    }
-
-    // Fetch organizational page edge analytics (followers, impressions, reach)
+    // Try to fetch organizational page edge analytics directly
+    // Skip /me validation as token might only work for specific endpoints
     try {
-      const edgeUrl = `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}&dimension=MEMBER_COUNTRY`;
-      console.log('[LinkedIn] Fetching edge analytics from:', edgeUrl);
+      const edgeUrl = `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}`;
+      console.log('[LinkedIn] Fetching edge analytics...');
 
       const edgeRes = await fetch(edgeUrl, {
         headers: {
@@ -56,15 +42,16 @@ export default async function handler(req, res) {
 
       console.log('[LinkedIn] Edge response status:', edgeRes.status);
       const edgeData = await edgeRes.json();
-      console.log('[LinkedIn] Edge response:', JSON.stringify(edgeData).substring(0, 500));
+      console.log('[LinkedIn] Edge response body:', JSON.stringify(edgeData).substring(0, 500));
 
       if (edgeRes.ok && edgeData.elements) {
         if (edgeData.elements.length > 0) {
           followers = edgeData.elements[0]?.followerCount || 0;
           monthlyImpressions = edgeData.elements[0]?.pageImpressionsCount || 0;
+          console.log('[LinkedIn] Successfully fetched - followers:', followers, 'impressions:', monthlyImpressions);
         }
       } else {
-        console.log('[LinkedIn] Edge analytics returned:', edgeRes.status, edgeData?.error || edgeData?.serviceErrorCode);
+        console.log('[LinkedIn] API Error:', edgeRes.status, edgeData?.serviceErrorCode || edgeData?.message);
       }
     } catch (err) {
       console.log('[LinkedIn] Error fetching edge analytics:', err.message);
