@@ -27,53 +27,79 @@ export default async function handler(req, res) {
     let engagementRate = '0%';
     let topPostReach = 0;
 
+    // First, verify organization exists and get page info
+    try {
+      console.log('[LinkedIn] Verifying organization access...');
+      const verifyRes = await fetch(`https://api.linkedin.com/rest/organizations/${organizationUrn.split(':').pop()}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/vnd.linkedin.v2+json',
+        },
+      });
+      console.log('[LinkedIn] Organization verify status:', verifyRes.status);
+      if (verifyRes.ok) {
+        const orgData = await verifyRes.json();
+        console.log('[LinkedIn] Organization data:', JSON.stringify(orgData).substring(0, 200));
+      }
+    } catch (err) {
+      console.log('[LinkedIn] Could not verify organization:', err.message);
+    }
+
     // Try multiple endpoint variations to find working query
     try {
-      // Try with timeInterval dimension (followers over time)
       const queries = [
-        { name: 'timeInterval', url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=timeInterval&organizationalPage=${encodeURIComponent(organizationUrn)}` },
-        { name: 'dimension', url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}&dimension=FollowerCountsByFollowerOrigin` },
-        { name: 'trend', url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationUrn)}` },
+        {
+          name: 'follower count',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=urn%3Ali%3Aorganization%3A108355800&dimensions=List(FollowerCount)`,
+          fields: 'followerCount'
+        },
+        {
+          name: 'page details',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?organizationalPage=urn%3Ali%3Aorganization%3A108355800`,
+          fields: 'none'
+        },
+        {
+          name: 'analytics summary',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageAnalytics?organizationalPage=urn%3Ali%3Aorganization%3A108355800`,
+          fields: 'summary'
+        }
       ];
 
       for (const query of queries) {
-        console.log(`[LinkedIn] Trying ${query.name} endpoint...`);
+        console.log(`[LinkedIn] Trying ${query.name}...`);
         try {
-          const edgeRes = await fetch(query.url, {
+          const res = await fetch(query.url, {
             headers: {
               'Authorization': `Bearer ${accessToken}`,
               'Accept': 'application/vnd.linkedin.v2+json',
-              'LinkedIn-Version': '202410',
               'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
             },
           });
 
-          console.log(`[LinkedIn] ${query.name} status: ${edgeRes.status}, content-type: ${edgeRes.headers.get('content-type')}`);
+          console.log(`[LinkedIn] ${query.name} status: ${res.status}`);
 
-          const responseText = await edgeRes.text();
-          console.log(`[LinkedIn] ${query.name} response body:`, responseText.substring(0, 500));
+          const text = await res.text();
+          console.log(`[LinkedIn] ${query.name} response:`, text.substring(0, 600));
 
-          let edgeData = {};
-          try {
-            edgeData = JSON.parse(responseText);
-          } catch (parseErr) {
-            console.log(`[LinkedIn] ${query.name} JSON parse error:`, parseErr.message);
-            continue;
+          const data = JSON.parse(text);
+
+          // Try to extract follower count from various possible locations
+          if (data.followerCount) {
+            followers = data.followerCount;
+            console.log('[LinkedIn] Found followerCount in root:', followers);
+          }
+          if (data.elements?.[0]?.followerCount) {
+            followers = data.elements[0].followerCount;
+            console.log('[LinkedIn] Found followerCount in elements:', followers);
+          }
+          if (data.elements?.[0]?.value?.followerCount) {
+            followers = data.elements[0].value.followerCount;
+            console.log('[LinkedIn] Found followerCount in elements[0].value:', followers);
           }
 
-          if (edgeRes.ok && edgeData.elements && edgeData.elements.length > 0) {
-            // Extract data based on response structure
-            const element = edgeData.elements[0];
-            followers = element?.followerCount || element?.followerCountsByFollowerOrigin?.organizationFollowerCount || 0;
-            monthlyImpressions = element?.pageImpressionsCount || element?.impressionCount || 0;
-
-            if (followers > 0 || monthlyImpressions > 0) {
-              console.log(`[LinkedIn] Got data from ${query.name} - followers: ${followers}, impressions: ${monthlyImpressions}`);
-              break; // Exit loop if we found data
-            }
-          } else {
-            console.log(`[LinkedIn] ${query.name} - no elements or not ok status. ok=${edgeRes.ok}, hasElements=${!!edgeData.elements}, elementCount=${edgeData.elements?.length || 0}`);
+          if (followers > 0) {
+            console.log('[LinkedIn] Successfully found follower data');
+            break;
           }
         } catch (queryErr) {
           console.log(`[LinkedIn] ${query.name} error:`, queryErr.message);
@@ -81,11 +107,11 @@ export default async function handler(req, res) {
         }
       }
 
-      if (followers === 0 && monthlyImpressions === 0) {
-        console.log('[LinkedIn] No data found in any endpoint variation');
+      if (followers === 0) {
+        console.log('[LinkedIn] Could not retrieve any analytics data - token may lack required scopes or organization has no analytics data');
       }
     } catch (err) {
-      console.log('[LinkedIn] Error in edge analytics:', err.message);
+      console.log('[LinkedIn] Error in analytics queries:', err.message);
     }
 
     // Fetch organizational page content analytics (engagement, posts)
