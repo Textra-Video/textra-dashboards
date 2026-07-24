@@ -59,22 +59,8 @@ export default function LinkedInExplorer({ onMetricSelect }) {
     <div className="dashboard-content">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div className="section-title" style={{ margin: 0 }}>LinkedIn Explorer</div>
-        <button
-          onClick={fetchLinkedInData}
-          disabled={loading}
-          style={{
-            padding: '8px 16px',
-            background: '#0077B5',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            opacity: loading ? 0.6 : 1,
-          }}
-        >
-          {loading ? 'Refreshing...' : '🔄 Refresh'}
+        <button className="refresh-button" onClick={fetchLinkedInData} disabled={loading}>
+          {loading ? 'Refreshing...' : 'Refresh Data'}
         </button>
       </div>
 
