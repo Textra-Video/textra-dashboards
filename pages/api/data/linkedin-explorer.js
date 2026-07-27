@@ -84,7 +84,7 @@ export default async function handler(req, res) {
     // A version window that rejects 2.5 years of monthly values means this
     // product likely doesn't use the standard rolling LinkedIn-Version scheme
     // at all. Test omitting the header entirely as the decisive check.
-    const probeUrl = `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}`;
+    const probeUrl = `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${organizationUrn}`;
 
     let workingVersion = null;
     let noVersionWorked = false;
@@ -152,15 +152,15 @@ export default async function handler(req, res) {
       const dmaQueries = [
         {
           name: 'dmaOrganizationalPageEdgeAnalytics (dimension)',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(pageUrn)}`,
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${pageUrn}`,
         },
         {
           name: 'dmaOrganizationalPageEdgeAnalytics (trend)',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodeURIComponent(pageUrn)}`,
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${pageUrn}`,
         },
         {
           name: 'dmaOrganizationalPageFollows (followee)',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageFollows?q=followee&followee=${encodeURIComponent(pageUrn)}`,
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageFollows?q=followee&followee=${pageUrn}`,
         },
       ];
 
