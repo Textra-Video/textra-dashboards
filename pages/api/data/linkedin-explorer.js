@@ -144,10 +144,13 @@ export default async function handler(req, res) {
     if (workingVersion || noVersionWorked) {
       console.log(`[LinkedIn] Proceeding with version: ${workingVersion || '(none/omitted)'}. Querying real endpoints...`);
 
-      // organizationalPage errored deserializing urn:li:organization:X - use
-      // the resolved organizationalPage URN if the lookup succeeded, else
-      // fall back to the org URN so we still see a (likely different) error.
-      const pageUrn = organizationalPageUrn || organizationUrn;
+      // The error echoed urn:li:organization:108355800 back unmangled (not an
+      // encoding issue) - this is a URN TYPE mismatch. The field is literally
+      // named "organizationalPage", distinct from "organization" (which
+      // deserialized fine in dmaOrganizationAcls). Try the organizationalPage
+      // URN namespace with the same numeric ID.
+      const orgId = organizationUrn.split(':').pop();
+      const pageUrn = organizationalPageUrn || `urn:li:organizationalPage:${orgId}`;
 
       const dmaQueries = [
         {
