@@ -47,9 +47,12 @@ export default async function handler(req, res) {
     const encodedPageUrn = encodeURIComponent(organizationalPageUrn);
 
     // Step 2: follower count via the trend finder (analyticsType=FOLLOWER).
-    const now = Date.now();
-    const start = now - 365 * 24 * 60 * 60 * 1000;
-    const timeIntervals = `(timeRange:(end:${now},start:${start}))`;
+    // Accept optional startDate/endDate (YYYY-MM-DD) query params; default
+    // to the last 365 days if not provided.
+    const { startDate, endDate } = req.query;
+    const end = endDate ? new Date(endDate).getTime() : Date.now();
+    const start = startDate ? new Date(startDate).getTime() : end - 365 * 24 * 60 * 60 * 1000;
+    const timeIntervals = `(timeRange:(end:${end},start:${start}))`;
 
     const followerRes = await fetch(
       `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodedPageUrn}&analyticsType=FOLLOWER&timeIntervals=${timeIntervals}`,
@@ -104,6 +107,10 @@ export default async function handler(req, res) {
     res.status(200).json({
       success: true,
       message: 'LinkedIn Analytics - Available Metrics',
+      dateRange: {
+        start: new Date(start).toISOString().slice(0, 10),
+        end: new Date(end).toISOString().slice(0, 10),
+      },
       summary: {
         followers,
         monthlyImpressions,
