@@ -3,6 +3,7 @@
 // Requires: GOOGLE_ANALYTICS_PROPERTY_ID and GOOGLE_ANALYTICS_CREDENTIALS
 
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
+import { GoogleAuth } from 'google-auth-library';
 
 export default async function handler(req, res) {
   if (!process.env.GOOGLE_ANALYTICS_PROPERTY_ID || !process.env.GOOGLE_ANALYTICS_CREDENTIALS) {
@@ -45,6 +46,26 @@ export default async function handler(req, res) {
       message: parseErr.message,
       envVarLength: process.env.GOOGLE_ANALYTICS_CREDENTIALS?.length,
     });
+  }
+
+  debugInfo.serverTime = new Date().toISOString();
+  debugInfo.serverTimeMs = Date.now();
+
+  // Isolate token minting from the actual API call - if this itself fails,
+  // the problem is in the JWT/OAuth exchange with Google, not GA4 permissions.
+  try {
+    const auth = new GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/analytics.readonly'],
+    });
+    const client = await auth.getClient();
+    const tokenResponse = await client.getAccessToken();
+    debugInfo.tokenMintingSucceeded = true;
+    debugInfo.tokenPrefix = tokenResponse.token ? tokenResponse.token.substring(0, 10) : null;
+  } catch (tokenErr) {
+    debugInfo.tokenMintingSucceeded = false;
+    debugInfo.tokenMintingError = tokenErr.message;
+    debugInfo.tokenMintingErrorDetails = tokenErr.response?.data || tokenErr.details || null;
   }
 
   try {
