@@ -65,6 +65,13 @@ export default async function handler(req, res) {
         name: 'dimension + dimensionType=REGION_GEO',
         url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${organizationalPageUrn}&analyticsType=FOLLOWER&dimensionType=REGION_GEO`,
       },
+      {
+        // Doc's literal VISITOR trend example verbatim, only URN swapped -
+        // isolates whether the base structure works at all vs FOLLOWER
+        // specifically needing something undocumented.
+        name: 'trend VISITOR (doc-literal, with sourceTypes)',
+        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${organizationalPageUrn}&analyticsType=VISITOR&timeIntervals=${timeIntervals}&sourceTypes=List(JOBS,CAREER)`,
+      },
     ];
 
     // Docs' exact BATCH_FIND syntax for checking per-action authorization -
