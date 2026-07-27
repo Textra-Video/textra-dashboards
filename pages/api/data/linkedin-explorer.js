@@ -47,15 +47,11 @@ export default async function handler(req, res) {
     // page's full follower history in one call.
     const now = Date.now();
     const start = now - 365 * 24 * 60 * 60 * 1000;
-    const timeIntervals = `(timeRange:(start:${start},end:${now}))`;
+    // Match the doc's exact sample field order (end before start).
+    const timeIntervals = `(timeRange:(end:${now},start:${start}))`;
 
-    // Top-level simple URN params take literal colons (confirmed earlier);
-    // timeIntervals is a structured/nested param whose parens and ':'
-    // separators must also stay literal - only percent-encode commas/spaces.
-    const followerRes = await fetch(
-      `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${organizationalPageUrn}&analyticsType=FOLLOWER&timeIntervals=${timeIntervals}`,
-      { headers: baseHeaders(accessToken) }
-    );
+    const followerUrl = `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${organizationalPageUrn}&analyticsType=FOLLOWER&timeIntervals=${timeIntervals}`;
+    const followerRes = await fetch(followerUrl, { headers: baseHeaders(accessToken) });
     const followerData = await followerRes.json();
 
     if (Array.isArray(followerData.elements)) {
@@ -91,7 +87,7 @@ export default async function handler(req, res) {
       message: 'LinkedIn Analytics - Available Metrics',
       debug: {
         organizationalPageUrn,
-        pageEntityRaw: pageEntityData,
+        followerUrl,
         followerRaw: followerData,
       },
       summary: {
