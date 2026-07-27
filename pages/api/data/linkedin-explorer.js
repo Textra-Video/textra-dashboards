@@ -67,17 +67,13 @@ export default async function handler(req, res) {
       },
     ];
 
-    // Docs explicitly say: to find which pages you can actually query
-    // analytics for, check dmaOrganizationAuthorizations for the
-    // VISITOR_ANALYTICS_READ authorization action. Do that check first -
-    // the identical ILLEGAL_ARGUMENT across every param combination
-    // suggests a missing per-action authorization, not a syntax issue.
+    // Docs' exact BATCH_FIND syntax for checking per-action authorization -
+    // required per-action grant beyond OAuth scope, distinct from param
+    // syntax. Found via official docs, not guessed.
     let authorizationCheck = null;
     try {
-      const authRes = await fetch(
-        `https://api.linkedin.com/rest/dmaOrganizationAuthorizations?ids=List(${organizationalPageUrn})`,
-        { headers: baseHeaders(accessToken) }
-      );
+      const authUrl = `https://api.linkedin.com/rest/dmaOrganizationAuthorizations?bq=authorizationActionsAndImpersonator&authorizationActions=List((authorizationAction:(organizationAnalyticsAuthorizationAction:(actionType:FOLLOWER_ANALYTICS_READ))))&start=0&count=10`;
+      const authRes = await fetch(authUrl, { headers: baseHeaders(accessToken) });
       authorizationCheck = { status: authRes.status, body: await authRes.json() };
     } catch (err) {
       authorizationCheck = { error: err.message };
