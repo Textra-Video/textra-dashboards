@@ -47,6 +47,35 @@ export default async function handler(req, res) {
       console.log('[LinkedIn] Could not verify organization:', err.message);
     }
 
+    // "organizationalPage" params failed to deserialize urn:li:organization:X -
+    // that URN type is wrong for this field. Look up the actual
+    // organizationalPage URN via dmaOrganizationalPageProfiles (pageEntity
+    // finder) before using it anywhere else.
+    let organizationalPageUrn = null;
+    try {
+      const lookupRes = await fetch(
+        `https://api.linkedin.com/rest/dmaOrganizationalPageProfiles?q=pageEntity&pageEntity=${encodeURIComponent(organizationUrn)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json',
+            'LinkedIn-Version': '202605',
+            'X-Restli-Protocol-Version': '2.0.0',
+          },
+        }
+      );
+      const lookupText = await lookupRes.text();
+      debugResponses.push({ endpoint: 'dmaOrganizationalPageProfiles (pageEntity lookup)', status: lookupRes.status, fullBody: lookupText });
+      console.log(`[LinkedIn] pageEntity lookup status ${lookupRes.status}: ${lookupText}`);
+
+      if (lookupRes.ok) {
+        const lookupData = JSON.parse(lookupText);
+        organizationalPageUrn = lookupData.elements?.[0]?.organizationalPage || lookupData.elements?.[0]?.entityUrn || null;
+      }
+    } catch (err) {
+      debugResponses.push({ endpoint: 'dmaOrganizationalPageProfiles (pageEntity lookup)', error: err.message });
+    }
+
     // Every YYYYMM version from 2023-2026 was rejected as NONEXISTENT_VERSION.
     // Confirmed: this app's ONLY product is "Pages Data Portability API"
     // (Standard Tier) - the dma* endpoints ARE the correct/only product.
@@ -113,26 +142,23 @@ export default async function handler(req, res) {
     if (workingVersion || noVersionWorked) {
       console.log(`[LinkedIn] Proceeding with version: ${workingVersion || '(none/omitted)'}. Querying real endpoints...`);
 
+      // organizationalPage errored deserializing urn:li:organization:X - use
+      // the resolved organizationalPage URN if the lookup succeeded, else
+      // fall back to the org URN so we still see a (likely different) error.
+      const pageUrn = organizationalPageUrn || organizationUrn;
+
       const dmaQueries = [
         {
           name: 'dmaOrganizationalPageEdgeAnalytics (dimension)',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}`,
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(pageUrn)}`,
         },
         {
           name: 'dmaOrganizationalPageEdgeAnalytics (trend)',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationUrn)}`,
-        },
-        {
-          name: 'dmaOrganizationalPageContentAnalytics (postGestures)',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&organizationalPage=${encodeURIComponent(organizationUrn)}`,
-        },
-        {
-          name: 'dmaOrganizationalPageContentAnalytics (trend)',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationUrn)}`,
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodeURIComponent(pageUrn)}`,
         },
         {
           name: 'dmaOrganizationalPageFollows (followee)',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageFollows?q=followee&followee=${encodeURIComponent(organizationUrn)}`,
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageFollows?q=followee&followee=${encodeURIComponent(pageUrn)}`,
         },
       ];
 
