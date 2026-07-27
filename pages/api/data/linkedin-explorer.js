@@ -50,15 +50,39 @@ export default async function handler(req, res) {
     // Match the doc's exact sample field order (end before start).
     const timeIntervals = `(timeRange:(end:${now},start:${start}))`;
 
-    const followerUrl = `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${organizationalPageUrn}&analyticsType=FOLLOWER&timeIntervals=${timeIntervals}`;
-    const followerRes = await fetch(followerUrl, { headers: baseHeaders(accessToken) });
-    const followerData = await followerRes.json();
+    const timeIntervalsWithGranularity = `(timeRange:(end:${now},start:${start}),timeGranularityType:MONTH)`;
 
-    if (Array.isArray(followerData.elements)) {
-      followers = followerData.elements.reduce((sum, el) => {
-        const v = el.value?.typeSpecificValue?.followerEdgeAnalyticsValue;
-        return sum + (v?.organicValue || 0) + (v?.sponsoredValue || 0);
-      }, 0);
+    const followerVariants = [
+      {
+        name: 'trend (as-is)',
+        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${organizationalPageUrn}&analyticsType=FOLLOWER&timeIntervals=${timeIntervals}`,
+      },
+      {
+        name: 'trend + timeGranularityType',
+        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${organizationalPageUrn}&analyticsType=FOLLOWER&timeIntervals=${timeIntervalsWithGranularity}`,
+      },
+      {
+        name: 'dimension + dimensionType=REGION_GEO',
+        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${organizationalPageUrn}&analyticsType=FOLLOWER&dimensionType=REGION_GEO`,
+      },
+    ];
+
+    const followerVariantResults = [];
+    for (const variant of followerVariants) {
+      try {
+        const r = await fetch(variant.url, { headers: baseHeaders(accessToken) });
+        const d = await r.json();
+        followerVariantResults.push({ name: variant.name, url: variant.url, status: r.status, body: d });
+
+        if (r.ok && Array.isArray(d.elements) && followers === 0) {
+          followers = d.elements.reduce((sum, el) => {
+            const v = el.value?.typeSpecificValue?.followerEdgeAnalyticsValue;
+            return sum + (v?.organicValue || 0) + (v?.sponsoredValue || 0);
+          }, 0);
+        }
+      } catch (err) {
+        followerVariantResults.push({ name: variant.name, url: variant.url, error: err.message });
+      }
     }
 
     // Step 3: post engagement/impressions via content analytics (postGestures).
@@ -87,8 +111,7 @@ export default async function handler(req, res) {
       message: 'LinkedIn Analytics - Available Metrics',
       debug: {
         organizationalPageUrn,
-        followerUrl,
-        followerRaw: followerData,
+        followerVariantResults,
       },
       summary: {
         followers,
