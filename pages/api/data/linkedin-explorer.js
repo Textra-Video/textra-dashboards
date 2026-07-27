@@ -67,6 +67,22 @@ export default async function handler(req, res) {
       },
     ];
 
+    // Docs explicitly say: to find which pages you can actually query
+    // analytics for, check dmaOrganizationAuthorizations for the
+    // VISITOR_ANALYTICS_READ authorization action. Do that check first -
+    // the identical ILLEGAL_ARGUMENT across every param combination
+    // suggests a missing per-action authorization, not a syntax issue.
+    let authorizationCheck = null;
+    try {
+      const authRes = await fetch(
+        `https://api.linkedin.com/rest/dmaOrganizationAuthorizations?ids=List(${organizationalPageUrn})`,
+        { headers: baseHeaders(accessToken) }
+      );
+      authorizationCheck = { status: authRes.status, body: await authRes.json() };
+    } catch (err) {
+      authorizationCheck = { error: err.message };
+    }
+
     const followerVariantResults = [];
     for (const variant of followerVariants) {
       try {
@@ -111,6 +127,7 @@ export default async function handler(req, res) {
       message: 'LinkedIn Analytics - Available Metrics',
       debug: {
         organizationalPageUrn,
+        authorizationCheck,
         followerVariantResults,
       },
       summary: {
