@@ -64,22 +64,38 @@ export default async function handler(req, res) {
       }, 0);
     }
 
-    // Step 3: post engagement/impressions via content analytics (postGestures).
+    // Step 3: page-level content analytics via the trend finder.
+    // postGestures/postDimension require a specific post's URN
+    // (sourcePostEntity) - we don't have individual post IDs. trend accepts
+    // sourceEntity=organizationalPage URN directly for aggregate metrics.
+    let likes = 0, comments = 0, reposts = 0, clicks = 0, uniqueImpressions = 0;
     try {
+      const metricTypes = 'List(IMPRESSIONS,UNIQUE_IMPRESSIONS,CLICKS,COMMENTS,REACTIONS,REPOSTS,ENGAGEMENT_RATE)';
       const contentRes = await fetch(
-        `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&organizationalPage=${encodedPageUrn}`,
+        `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=trend&sourceEntity=${encodedPageUrn}&metricTypes=${metricTypes}&timeIntervals=${timeIntervals}`,
         { headers: baseHeaders(accessToken) }
       );
       const contentData = await contentRes.json();
-      if (Array.isArray(contentData.elements) && contentData.elements.length > 0) {
-        const totalImpressions = contentData.elements.reduce((sum, el) => sum + (el.impressionCount || 0), 0);
-        const totalEngagements = contentData.elements.reduce((sum, el) =>
-          sum + (el.likeCount || 0) + (el.commentCount || 0) + (el.shareCount || 0) + (el.clickCount || 0), 0);
-        monthlyImpressions = totalImpressions;
-        if (totalImpressions > 0) {
-          engagementRate = ((totalEngagements / totalImpressions) * 100).toFixed(1) + '%';
+
+      if (Array.isArray(contentData.elements)) {
+        const totalsByType = {};
+        for (const el of contentData.elements) {
+          const val = el.metric?.value;
+          const count = val?.totalCount?.long ?? val?.totalCount?.bigDecimal ?? 0;
+          totalsByType[el.type] = (totalsByType[el.type] || 0) + parseFloat(count);
         }
-        topPostReach = Math.max(...contentData.elements.map((el) => el.impressionCount || 0), 0);
+
+        monthlyImpressions = totalsByType.IMPRESSIONS || 0;
+        uniqueImpressions = totalsByType.UNIQUE_IMPRESSIONS || 0;
+        clicks = totalsByType.CLICKS || 0;
+        comments = totalsByType.COMMENTS || 0;
+        likes = totalsByType.REACTIONS || 0;
+        reposts = totalsByType.REPOSTS || 0;
+        topPostReach = uniqueImpressions || monthlyImpressions;
+
+        if (totalsByType.ENGAGEMENT_RATE !== undefined) {
+          engagementRate = (totalsByType.ENGAGEMENT_RATE * 100).toFixed(1) + '%';
+        }
       }
     } catch (contentErr) {
       console.log('[LinkedIn] Content analytics unavailable:', contentErr.message);
@@ -93,6 +109,11 @@ export default async function handler(req, res) {
         monthlyImpressions,
         engagementRate,
         topPostReach,
+        likes,
+        comments,
+        reposts,
+        clicks,
+        uniqueImpressions,
       },
       metrics: {
         followersMetrics: ['Total Followers', 'Follower Growth (30 days)', 'Follower Growth Rate', 'New Followers vs Last Month'],
