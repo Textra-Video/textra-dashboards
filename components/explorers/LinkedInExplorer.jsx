@@ -10,47 +10,36 @@ function InfoTooltip({ text }) {
   );
 }
 
-const METRIC_DESCRIPTIONS = {
-  followers: 'Total follower count. May show 0 on small/new pages - LinkedIn masks low numbers below a privacy threshold, not a real zero.',
+const SECONDARY_DESCRIPTIONS = {
   followerGrowth30d: 'New followers gained in the last 30 days (organic + sponsored), regardless of the date range selected above.',
   followerGrowthVsLastMonth: 'Change in follower growth rate vs. the prior 30-day period. "new growth" means there was no prior-period data to compare against.',
-  monthlyImpressions: 'Total times your posts were shown in someone’s feed in the selected period (organic + sponsored, includes repeat views).',
   organicImpressions: 'Impressions from unpaid, organic reach only.',
   paidImpressions: 'Impressions from sponsored/paid promotion only.',
-  engagementRate: 'Percentage of people who saw your content and took an action on it (like, comment, repost, or click).',
-  topPostReach: 'Distinct people who saw a post at least once in the selected period (same as Unique Impressions).',
-  likes: 'Total reactions (likes, praise, etc.) across your posts in the selected period.',
-  comments: 'Total comments left on your posts in the selected period.',
-  reposts: 'Number of times someone reshared your content in the selected period.',
-  clicks: 'Number of clicks on your posts (links, "see more", etc.) in the selected period.',
-  uniqueImpressions: 'Distinct people who saw your content at least once, not counting repeat views from the same person.',
   pageViews: 'Total visits to your LinkedIn page (desktop + mobile) in the selected period.',
-  uniqueVisitors: 'Distinct people who visited your page at least once in the selected period.',
+  uniqueVisitors: 'Distinct visitors. LinkedIn suppresses this field by default (requires a field-projection request we haven\'t implemented) - currently always 0, not a real count.',
 };
 
-const METRIC_LABELS = {
-  followers: 'Followers',
+const SECONDARY_LABELS = {
   followerGrowth30d: 'Follower Growth (30d)',
   followerGrowthVsLastMonth: 'Growth vs Last Month',
-  monthlyImpressions: 'Impressions',
   organicImpressions: 'Organic Impressions',
   paidImpressions: 'Paid Impressions',
-  engagementRate: 'Engagement Rate',
-  topPostReach: 'Top Post Reach',
-  likes: 'Likes',
-  comments: 'Comments',
-  reposts: 'Reposts',
-  clicks: 'Clicks',
-  uniqueImpressions: 'Unique Impressions',
   pageViews: 'Page Views',
   uniqueVisitors: 'Unique Visitors',
 };
+
+const SECONDARY_ORDER = ['organicImpressions', 'paidImpressions', 'followerGrowth30d', 'followerGrowthVsLastMonth', 'pageViews', 'uniqueVisitors'];
+
+function pct(part, whole) {
+  if (!whole) return '—';
+  return `${((part / whole) * 100).toFixed(1)}%`;
+}
 
 export default function LinkedInExplorer({ onMetricSelect }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expandedSections, setExpandedSections] = useState({});
+  const [drilldown, setDrilldown] = useState(null);
   const [dateRange, setDateRange] = useState('last-year'); // 'last-year', 'last-90', 'last-30', 'custom'
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -102,13 +91,6 @@ export default function LinkedInExplorer({ onMetricSelect }) {
     }
   };
 
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  };
-
   if (loading && !data) {
     return <div className="loading">Fetching LinkedIn data...</div>;
   }
@@ -130,6 +112,144 @@ export default function LinkedInExplorer({ onMetricSelect }) {
   if (!data) {
     return <div className="error">No data available</div>;
   }
+
+  const s = data.summary || {};
+
+  const primaryCards = [
+    {
+      key: 'followers',
+      icon: '👥',
+      label: 'Followers',
+      value: s.followers,
+      tooltip: 'Total follower count. May show 0 on small/new pages - LinkedIn masks low numbers below a privacy threshold, not a real zero.',
+      drilldown: {
+        title: '👥 Followers',
+        description: 'Follower growth is derived from trend data directly and isn\'t affected by the total-follower privacy mask.',
+        rows: [
+          { label: 'Total Followers', value: s.followers },
+          { label: 'Growth (30 days)', value: s.followerGrowth30d },
+          { label: 'Growth vs Last Month', value: s.followerGrowthVsLastMonth },
+        ],
+      },
+    },
+    {
+      key: 'monthlyImpressions',
+      icon: '👁️',
+      label: 'Impressions',
+      value: s.monthlyImpressions,
+      tooltip: 'Total times your posts were shown in someone’s feed in the selected period (organic + sponsored, includes repeat views).',
+      drilldown: {
+        title: '👁️ Impressions',
+        description: 'Breakdown of total impressions for the selected period.',
+        rows: [
+          { label: 'Total Impressions', value: s.monthlyImpressions },
+          { label: 'Organic', value: s.organicImpressions },
+          { label: 'Paid / Sponsored', value: s.paidImpressions },
+          { label: 'Unique Impressions', value: s.uniqueImpressions },
+        ],
+      },
+    },
+    {
+      key: 'engagementRate',
+      icon: '📊',
+      label: 'Engagement Rate',
+      value: s.engagementRate,
+      tooltip: 'Percentage of people who saw your content and took an action on it (like, comment, repost, or click).',
+      drilldown: {
+        title: '📊 Engagement Rate',
+        description: 'Actions contributing to engagement in the selected period.',
+        rows: [
+          { label: 'Engagement Rate', value: s.engagementRate },
+          { label: 'Likes', value: s.likes },
+          { label: 'Comments', value: s.comments },
+          { label: 'Reposts', value: s.reposts },
+          { label: 'Clicks', value: s.clicks },
+        ],
+      },
+    },
+    {
+      key: 'topPostReach',
+      icon: '🎯',
+      label: 'Top Post Reach',
+      value: s.topPostReach,
+      tooltip: 'Distinct people who saw a post at least once in the selected period (same as Unique Impressions).',
+      drilldown: {
+        title: '🎯 Top Post Reach',
+        description: 'Reach vs. total impressions for the selected period.',
+        rows: [
+          { label: 'Unique Reach', value: s.topPostReach },
+          { label: 'Total Impressions', value: s.monthlyImpressions },
+          { label: 'Reach as % of Impressions', value: pct(s.topPostReach, s.monthlyImpressions) },
+        ],
+      },
+    },
+    {
+      key: 'likes',
+      icon: '👍',
+      label: 'Likes',
+      value: s.likes,
+      tooltip: 'Total reactions (likes, praise, etc.) across your posts in the selected period.',
+      drilldown: {
+        title: '👍 Likes',
+        description: 'Likes relative to reach for the selected period.',
+        rows: [
+          { label: 'Likes', value: s.likes },
+          { label: 'Unique Impressions', value: s.uniqueImpressions },
+          { label: 'Likes per 1,000 Impressions', value: s.monthlyImpressions ? ((s.likes / s.monthlyImpressions) * 1000).toFixed(1) : '—' },
+        ],
+      },
+    },
+    {
+      key: 'comments',
+      icon: '💬',
+      label: 'Comments',
+      value: s.comments,
+      tooltip: 'Total comments left on your posts in the selected period.',
+      drilldown: {
+        title: '💬 Comments',
+        description: 'Comments relative to reach for the selected period.',
+        rows: [
+          { label: 'Comments', value: s.comments },
+          { label: 'Unique Impressions', value: s.uniqueImpressions },
+          { label: 'Comments per 1,000 Impressions', value: s.monthlyImpressions ? ((s.comments / s.monthlyImpressions) * 1000).toFixed(1) : '—' },
+        ],
+      },
+    },
+    {
+      key: 'reposts',
+      icon: '🔁',
+      label: 'Reposts',
+      value: s.reposts,
+      tooltip: 'Number of times someone reshared your content in the selected period.',
+      drilldown: {
+        title: '🔁 Reposts',
+        description: 'Reposts relative to reach for the selected period.',
+        rows: [
+          { label: 'Reposts', value: s.reposts },
+          { label: 'Unique Impressions', value: s.uniqueImpressions },
+          { label: 'Reposts per 1,000 Impressions', value: s.monthlyImpressions ? ((s.reposts / s.monthlyImpressions) * 1000).toFixed(1) : '—' },
+        ],
+      },
+    },
+    {
+      key: 'clicks',
+      icon: '🖱️',
+      label: 'Clicks',
+      value: s.clicks,
+      tooltip: 'Number of clicks on your posts (links, "see more", etc.) in the selected period.',
+      drilldown: {
+        title: '🖱️ Clicks',
+        description: 'Click-through performance for the selected period.',
+        rows: [
+          { label: 'Clicks', value: s.clicks },
+          { label: 'Total Impressions', value: s.monthlyImpressions },
+          { label: 'Click-Through Rate', value: pct(s.clicks, s.monthlyImpressions) },
+        ],
+      },
+    },
+  ];
+
+  const secondaryStats = SECONDARY_ORDER.filter((key) => s[key] !== undefined);
 
   return (
     <div className="dashboard-content">
@@ -179,85 +299,79 @@ export default function LinkedInExplorer({ onMetricSelect }) {
 
       {data.dateRange && (
         <p style={{ fontSize: '12px', color: 'var(--muted)', margin: '0 0 16px 0' }}>
-          Showing data from {data.dateRange.start} to {data.dateRange.end}
+          Showing data from {data.dateRange.start} to {data.dateRange.end} - click any card below for more detail.
         </p>
       )}
 
-      <div style={{ background: '#f0f4ff', padding: '12px', borderRadius: '4px', marginBottom: '20px', fontSize: '13px' }}>
-        💼 Available metrics from LinkedIn Analytics. Select which ones you'd like on your dashboard.
+      {/* Primary metrics - one row, clickable */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${primaryCards.length}, minmax(110px, 1fr))`,
+          gap: '10px',
+          marginBottom: '16px',
+          overflowX: 'auto',
+        }}
+      >
+        {primaryCards.map((card) => (
+          <button
+            key={card.key}
+            className="metric-card metric-card-clickable"
+            style={{ padding: '14px 10px', minHeight: '108px' }}
+            onClick={() => setDrilldown(card.drilldown)}
+          >
+            <div style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', opacity: 0.9 }}>
+              {card.icon} {card.label}
+              <InfoTooltip text={card.tooltip} />
+            </div>
+            <div style={{ fontSize: '22px', fontWeight: 'bold', marginTop: 'auto' }}>{card.value ?? '—'}</div>
+          </button>
+        ))}
       </div>
 
-      {/* Summary Stats */}
-      {data.summary && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-          {Object.entries(data.summary).map(([key, value]) => (
-            <div key={key} style={{ background: '#f5f5f5', padding: '16px', borderRadius: '8px', textAlign: 'center', position: 'relative' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#0077B5' }}>{value}</div>
-              <div style={{ fontSize: '12px', color: '#666', marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                {METRIC_LABELS[key] || key.replace(/([A-Z])/g, ' $1').trim()}
-                {METRIC_DESCRIPTIONS[key] && <InfoTooltip text={METRIC_DESCRIPTIONS[key]} />}
+      {/* Secondary stats - smaller, non-clickable */}
+      {secondaryStats.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '24px' }}>
+          {secondaryStats.map((key) => (
+            <div key={key} style={{ background: '#f5f5f5', padding: '10px 12px', borderRadius: '6px', textAlign: 'center' }}>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: '#555' }}>{s[key]}</div>
+              <div style={{ fontSize: '10px', color: '#888', marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
+                {SECONDARY_LABELS[key]}
+                {SECONDARY_DESCRIPTIONS[key] && <InfoTooltip text={SECONDARY_DESCRIPTIONS[key]} />}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Data Sections */}
-      {data.metrics && Object.entries(data.metrics).map(([section, items]) => {
-        if (!items || items.length === 0) return null;
-
-        const isExpanded = expandedSections[section];
-
-        return (
-          <div key={section} style={{ marginBottom: '16px', border: '1px solid #ddd', borderRadius: '8px', overflow: 'hidden' }}>
-            <button
-              onClick={() => toggleSection(section)}
-              style={{
-                width: '100%',
-                padding: '16px',
-                background: '#f9f9f9',
-                border: 'none',
-                textAlign: 'left',
-                cursor: 'pointer',
-                fontWeight: '600',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <span style={{ textTransform: 'capitalize' }}>
-                {section.replace(/([A-Z])/g, ' $1').trim()} ({items.length})
-              </span>
-              <span>{isExpanded ? '▲' : '▼'}</span>
-            </button>
-
-            {isExpanded && (
-              <div style={{ padding: '16px', background: '#fff', maxHeight: '400px', overflowY: 'auto' }}>
-                {items.slice(0, 20).map((item, idx) => (
-                  <div key={idx} style={{ padding: '8px 0', borderBottom: idx < Math.min(20, items.length - 1) ? '1px solid #eee' : 'none', fontSize: '13px' }}>
-                    {typeof item === 'object' ? (
-                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#333', fontSize: '11px' }}>
-                        {JSON.stringify(item, null, 2).substring(0, 300)}...
-                      </pre>
-                    ) : (
-                      <div>{item}</div>
-                    )}
-                  </div>
+      {/* Drilldown modal */}
+      {drilldown && (
+        <div className="modal-overlay" onClick={() => setDrilldown(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setDrilldown(null)}>✕</button>
+            <h2>{drilldown.title}</h2>
+            <p className="modal-description">{drilldown.description}</p>
+            <table className="drilldown-table">
+              <tbody>
+                {drilldown.rows.map((row, i) => (
+                  <tr key={i}>
+                    <td>{row.label}</td>
+                    <td className="amount">{row.value ?? '—'}</td>
+                  </tr>
                 ))}
-                {items.length > 20 && (
-                  <div style={{ padding: '8px 0', color: '#999', fontSize: '12px' }}>
-                    +{items.length - 20} more items
-                  </div>
-                )}
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
-        );
-      })}
+        </div>
+      )}
 
-      <div style={{ marginTop: '24px', padding: '12px', background: '#e7f3ff', borderRadius: '4px', fontSize: '13px' }}>
-        💡 Track follower growth, engagement rates, post performance, reach, impressions, and lead generation metrics.
-      </div>
+      {/* Not-yet-available metrics */}
+      {data.metrics && Object.entries(data.metrics).some(([, items]) => items?.length > 0) && (
+        <div style={{ marginTop: '8px', padding: '12px', background: '#fff8e6', borderRadius: '4px', fontSize: '12px', color: '#8a6d1a' }}>
+          ⚠️ Not yet available via LinkedIn's API (needs a separate integration or per-post IDs we don't have):{' '}
+          {Object.values(data.metrics).flat().join(', ')}
+        </div>
+      )}
     </div>
   );
 }

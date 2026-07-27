@@ -111,7 +111,10 @@ export default async function handler(req, res) {
         let organicImpressionsTotal = 0;
         let paidImpressionsTotal = 0;
 
-        const extract = (u) => u?.long ?? parseFloat(u?.bigDecimal) ?? 0;
+        const extract = (u) => {
+          const v = u?.long ?? parseFloat(u?.bigDecimal);
+          return Number.isFinite(v) ? v : 0;
+        };
 
         for (const el of contentData.elements) {
           const val = el.metric?.value;
