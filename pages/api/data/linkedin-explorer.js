@@ -47,44 +47,63 @@ export default async function handler(req, res) {
       console.log('[LinkedIn] Could not verify organization:', err.message);
     }
 
-    // Step 1: LinkedIn rejected version '202405' as NONEXISTENT_VERSION (426) -
-    // that version has aged out of their supported window. Probe a single
-    // endpoint against several recent YYYYMM versions to find one that's
-    // currently active, capturing full bodies so we know for certain rather
-    // than guessing indefinitely.
-    // 202410 previously returned 200 (not a version error) on this exact
-    // endpoint in an earlier deploy - test it first before falling back.
-    const versionCandidates = ['202410', '202411', '202405', '202506', '202503', '202412', '202409', '202312'];
+    // Every YYYYMM version from 2023-2026 was rejected as NONEXISTENT_VERSION.
+    // Confirmed: this app's ONLY product is "Pages Data Portability API"
+    // (Standard Tier) - the dma* endpoints ARE the correct/only product.
+    // A version window that rejects 2.5 years of monthly values means this
+    // product likely doesn't use the standard rolling LinkedIn-Version scheme
+    // at all. Test omitting the header entirely as the decisive check.
     const probeUrl = `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}`;
 
     let workingVersion = null;
-    for (const version of versionCandidates) {
-      try {
-        const res = await fetch(probeUrl, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/vnd.linkedin.v2+json',
-            'LinkedIn-Version': version,
-            'X-Restli-Protocol-Version': '2.0.0',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-          },
-        });
-        const text = await res.text();
-        debugResponses.push({ endpoint: `version probe ${version}`, status: res.status, fullBody: text });
-        console.log(`[LinkedIn] version ${version} status ${res.status}: ${text}`);
+    let noVersionWorked = false;
 
-        if (res.status !== 426) {
-          // Not a version-rejection error - this version is accepted by LinkedIn
-          workingVersion = version;
-          break;
+    try {
+      const res = await fetch(probeUrl, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/vnd.linkedin.v2+json',
+          'X-Restli-Protocol-Version': '2.0.0',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+      });
+      const text = await res.text();
+      debugResponses.push({ endpoint: 'no LinkedIn-Version header', status: res.status, fullBody: text });
+      console.log(`[LinkedIn] no version header status ${res.status}: ${text}`);
+      if (res.status !== 426) noVersionWorked = true;
+    } catch (err) {
+      debugResponses.push({ endpoint: 'no LinkedIn-Version header', error: err.message });
+    }
+
+    if (!noVersionWorked) {
+      const versionCandidates = ['202410', '202411', '202405', '202506', '202503', '202412', '202409', '202312'];
+      for (const version of versionCandidates) {
+        try {
+          const res = await fetch(probeUrl, {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Accept': 'application/vnd.linkedin.v2+json',
+              'LinkedIn-Version': version,
+              'X-Restli-Protocol-Version': '2.0.0',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+            },
+          });
+          const text = await res.text();
+          debugResponses.push({ endpoint: `version probe ${version}`, status: res.status, fullBody: text });
+          console.log(`[LinkedIn] version ${version} status ${res.status}: ${text}`);
+
+          if (res.status !== 426) {
+            workingVersion = version;
+            break;
+          }
+        } catch (err) {
+          debugResponses.push({ endpoint: `version probe ${version}`, error: err.message });
         }
-      } catch (err) {
-        debugResponses.push({ endpoint: `version probe ${version}`, error: err.message });
       }
     }
 
-    if (workingVersion) {
-      console.log(`[LinkedIn] Found working version: ${workingVersion}. Querying real endpoints...`);
+    if (workingVersion || noVersionWorked) {
+      console.log(`[LinkedIn] Proceeding with version: ${workingVersion || '(none/omitted)'}. Querying real endpoints...`);
 
       const dmaQueries = [
         {
@@ -111,15 +130,15 @@ export default async function handler(req, res) {
 
       for (const query of dmaQueries) {
         try {
-          const res = await fetch(query.url, {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Accept': 'application/vnd.linkedin.v2+json',
-              'LinkedIn-Version': workingVersion,
-              'X-Restli-Protocol-Version': '2.0.0',
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-            },
-          });
+          const headers = {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/vnd.linkedin.v2+json',
+            'X-Restli-Protocol-Version': '2.0.0',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          };
+          if (workingVersion) headers['LinkedIn-Version'] = workingVersion;
+
+          const res = await fetch(query.url, { headers });
 
           const text = await res.text();
           let data = {};
