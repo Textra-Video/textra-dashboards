@@ -35,8 +35,9 @@ export default async function handler(req, res) {
   }
 
   const numOfDays = ['1', '2', '3'].includes(req.query.numOfDays) ? req.query.numOfDays : '3';
+  const debug = req.query.debug === '1';
 
-  if (cache.data && cache.numOfDays === numOfDays && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
+  if (!debug && cache.data && cache.numOfDays === numOfDays && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
     return res.status(200).json({ ...cache.data, cached: true });
   }
 
@@ -109,7 +110,12 @@ export default async function handler(req, res) {
       unavailable: ['Heatmap Images', 'Session Recording Playback'],
     };
 
-    cache = { data: result, numOfDays, fetchedAt: Date.now() };
+    if (debug) {
+      result.rawMetricNames = rows.map((m) => m.metricName);
+      result.rawSample = rows.map((m) => ({ metricName: m.metricName, firstRow: m.information?.[0] }));
+    } else {
+      cache = { data: result, numOfDays, fetchedAt: Date.now() };
+    }
 
     res.status(200).json(result);
   } catch (error) {
