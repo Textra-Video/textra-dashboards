@@ -303,44 +303,49 @@ export default function LinkedInExplorer({ onMetricSelect }) {
         </p>
       )}
 
-      {/* Primary metrics - one row, clickable */}
+      {/* Primary metrics - wraps cleanly instead of cutting off in a scroll row */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(${primaryCards.length}, minmax(110px, 1fr))`,
-          gap: '10px',
-          marginBottom: '16px',
-          overflowX: 'auto',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+          gap: '14px',
+          marginBottom: '28px',
         }}
       >
         {primaryCards.map((card) => (
           <button
             key={card.key}
             className="metric-card metric-card-clickable"
-            style={{ padding: '14px 10px', minHeight: '108px' }}
+            style={{ padding: '18px 16px', minHeight: '120px' }}
             onClick={() => setDrilldown(card.drilldown)}
           >
-            <div style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', opacity: 0.9 }}>
-              {card.icon} {card.label}
+            <div style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', opacity: 0.9, lineHeight: 1.3 }}>
+              <span>{card.icon}</span>
+              <span>{card.label}</span>
               <InfoTooltip text={card.tooltip} />
             </div>
-            <div style={{ fontSize: '22px', fontWeight: 'bold', marginTop: 'auto' }}>{card.value ?? '—'}</div>
+            <div style={{ fontSize: '26px', fontWeight: 'bold', marginTop: 'auto' }}>{card.value ?? '—'}</div>
           </button>
         ))}
       </div>
 
-      {/* Secondary stats - smaller, non-clickable */}
+      {/* Secondary stats - clearly grouped as a distinct, lighter section */}
       {secondaryStats.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '24px' }}>
-          {secondaryStats.map((key) => (
-            <div key={key} style={{ background: '#f5f5f5', padding: '10px 12px', borderRadius: '6px', textAlign: 'center' }}>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: '#555' }}>{s[key]}</div>
-              <div style={{ fontSize: '10px', color: '#888', marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
-                {SECONDARY_LABELS[key]}
-                {SECONDARY_DESCRIPTIONS[key] && <InfoTooltip text={SECONDARY_DESCRIPTIONS[key]} />}
+        <div style={{ border: '1px solid #e5e5e5', borderRadius: '8px', padding: '16px', marginBottom: '24px', background: '#fafafa' }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '12px' }}>
+            Additional Metrics
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+            {secondaryStats.map((key) => (
+              <div key={key} style={{ background: '#fff', border: '1px solid #eee', padding: '12px 14px', borderRadius: '6px' }}>
+                <div style={{ fontSize: '17px', fontWeight: 600, color: '#333' }}>{s[key]}</div>
+                <div style={{ fontSize: '11px', color: '#888', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {SECONDARY_LABELS[key]}
+                  {SECONDARY_DESCRIPTIONS[key] && <InfoTooltip text={SECONDARY_DESCRIPTIONS[key]} />}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
