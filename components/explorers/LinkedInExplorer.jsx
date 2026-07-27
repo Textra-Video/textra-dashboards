@@ -12,7 +12,11 @@ function InfoTooltip({ text }) {
 
 const METRIC_DESCRIPTIONS = {
   followers: 'Total follower count. May show 0 on small/new pages - LinkedIn masks low numbers below a privacy threshold, not a real zero.',
+  followerGrowth30d: 'New followers gained in the last 30 days (organic + sponsored), regardless of the date range selected above.',
+  followerGrowthVsLastMonth: 'Change in follower growth rate vs. the prior 30-day period. "new growth" means there was no prior-period data to compare against.',
   monthlyImpressions: 'Total times your posts were shown in someone’s feed in the selected period (organic + sponsored, includes repeat views).',
+  organicImpressions: 'Impressions from unpaid, organic reach only.',
+  paidImpressions: 'Impressions from sponsored/paid promotion only.',
   engagementRate: 'Percentage of people who saw your content and took an action on it (like, comment, repost, or click).',
   topPostReach: 'Distinct people who saw a post at least once in the selected period (same as Unique Impressions).',
   likes: 'Total reactions (likes, praise, etc.) across your posts in the selected period.',
@@ -20,11 +24,17 @@ const METRIC_DESCRIPTIONS = {
   reposts: 'Number of times someone reshared your content in the selected period.',
   clicks: 'Number of clicks on your posts (links, "see more", etc.) in the selected period.',
   uniqueImpressions: 'Distinct people who saw your content at least once, not counting repeat views from the same person.',
+  pageViews: 'Total visits to your LinkedIn page (desktop + mobile) in the selected period.',
+  uniqueVisitors: 'Distinct people who visited your page at least once in the selected period.',
 };
 
 const METRIC_LABELS = {
   followers: 'Followers',
+  followerGrowth30d: 'Follower Growth (30d)',
+  followerGrowthVsLastMonth: 'Growth vs Last Month',
   monthlyImpressions: 'Impressions',
+  organicImpressions: 'Organic Impressions',
+  paidImpressions: 'Paid Impressions',
   engagementRate: 'Engagement Rate',
   topPostReach: 'Top Post Reach',
   likes: 'Likes',
@@ -32,6 +42,8 @@ const METRIC_LABELS = {
   reposts: 'Reposts',
   clicks: 'Clicks',
   uniqueImpressions: 'Unique Impressions',
+  pageViews: 'Page Views',
+  uniqueVisitors: 'Unique Visitors',
 };
 
 export default function LinkedInExplorer({ onMetricSelect }) {

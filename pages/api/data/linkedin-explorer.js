@@ -60,11 +60,36 @@ export default async function handler(req, res) {
     );
     const followerData = await followerRes.json();
 
+    // Growth-based metrics don't need the (privacy-masked) total follower
+    // baseline - they're derived from the per-bucket trend data itself.
+    let followerGrowth30d = 0;
+    let followerGrowthPrevPeriod = 0;
+    let followerGrowthVsLastMonth = 'n/a';
+
     if (Array.isArray(followerData.elements)) {
-      followers = followerData.elements.reduce((sum, el) => {
+      const dayMs = 24 * 60 * 60 * 1000;
+      const last30Start = end - 30 * dayMs;
+      const prev30Start = end - 60 * dayMs;
+
+      for (const el of followerData.elements) {
         const v = el.value?.typeSpecificValue?.followerEdgeAnalyticsValue;
-        return sum + (v?.organicValue || 0) + (v?.sponsoredValue || 0);
-      }, 0);
+        const bucketGrowth = (v?.organicValue || 0) + (v?.sponsoredValue || 0);
+        const bucketStart = el.timeIntervals?.timeRange?.start ?? 0;
+
+        followers += bucketGrowth;
+        if (bucketStart >= last30Start) {
+          followerGrowth30d += bucketGrowth;
+        } else if (bucketStart >= prev30Start) {
+          followerGrowthPrevPeriod += bucketGrowth;
+        }
+      }
+
+      if (followerGrowthPrevPeriod > 0) {
+        const pct = ((followerGrowth30d - followerGrowthPrevPeriod) / followerGrowthPrevPeriod) * 100;
+        followerGrowthVsLastMonth = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+      } else if (followerGrowth30d > 0) {
+        followerGrowthVsLastMonth = 'new growth (no prior period data)';
+      }
     }
 
     // Step 3: page-level content analytics via the trend finder.
@@ -72,6 +97,7 @@ export default async function handler(req, res) {
     // (sourcePostEntity) - we don't have individual post IDs. trend accepts
     // sourceEntity=organizationalPage URN directly for aggregate metrics.
     let likes = 0, comments = 0, reposts = 0, clicks = 0, uniqueImpressions = 0;
+    let organicImpressions = 0, paidImpressions = 0;
     try {
       const metricTypes = 'List(IMPRESSIONS,UNIQUE_IMPRESSIONS,CLICKS,COMMENTS,REACTIONS,REPOSTS,ENGAGEMENT_RATE)';
       const contentRes = await fetch(
@@ -82,10 +108,21 @@ export default async function handler(req, res) {
 
       if (Array.isArray(contentData.elements)) {
         const totalsByType = {};
+        let organicImpressionsTotal = 0;
+        let paidImpressionsTotal = 0;
+
+        const extract = (u) => u?.long ?? parseFloat(u?.bigDecimal) ?? 0;
+
         for (const el of contentData.elements) {
           const val = el.metric?.value;
-          const count = val?.totalCount?.long ?? val?.totalCount?.bigDecimal ?? 0;
-          totalsByType[el.type] = (totalsByType[el.type] || 0) + parseFloat(count);
+          const count = extract(val?.totalCount);
+          totalsByType[el.type] = (totalsByType[el.type] || 0) + count;
+
+          if (el.type === 'IMPRESSIONS') {
+            const cv = val?.typeSpecificValue?.contentAnalyticsValue;
+            organicImpressionsTotal += extract(cv?.organicValue);
+            paidImpressionsTotal += extract(cv?.sponsoredValue);
+          }
         }
 
         monthlyImpressions = totalsByType.IMPRESSIONS || 0;
@@ -95,6 +132,8 @@ export default async function handler(req, res) {
         likes = totalsByType.REACTIONS || 0;
         reposts = totalsByType.REPOSTS || 0;
         topPostReach = uniqueImpressions || monthlyImpressions;
+        organicImpressions = organicImpressionsTotal;
+        paidImpressions = paidImpressionsTotal;
 
         if (totalsByType.ENGAGEMENT_RATE !== undefined) {
           engagementRate = (totalsByType.ENGAGEMENT_RATE * 100).toFixed(1) + '%';
@@ -102,6 +141,26 @@ export default async function handler(req, res) {
       }
     } catch (contentErr) {
       console.log('[LinkedIn] Content analytics unavailable:', contentErr.message);
+    }
+
+    // Step 4: visitor/page-view stats via the same edge analytics endpoint,
+    // analyticsType=VISITOR instead of FOLLOWER.
+    let pageViews = 0, uniqueVisitors = 0;
+    try {
+      const visitorRes = await fetch(
+        `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodedPageUrn}&analyticsType=VISITOR&timeIntervals=${timeIntervals}`,
+        { headers: baseHeaders(accessToken) }
+      );
+      const visitorData = await visitorRes.json();
+      if (Array.isArray(visitorData.elements)) {
+        for (const el of visitorData.elements) {
+          const v = el.value?.typeSpecificValue?.visitorEdgeAnalyticsValue;
+          pageViews += (v?.desktopCount || 0) + (v?.mobileCount || 0);
+          uniqueVisitors += (v?.uniqueCount || 0);
+        }
+      }
+    } catch (visitorErr) {
+      console.log('[LinkedIn] Visitor analytics unavailable:', visitorErr.message);
     }
 
     res.status(200).json({
@@ -113,7 +172,11 @@ export default async function handler(req, res) {
       },
       summary: {
         followers,
+        followerGrowth30d,
+        followerGrowthVsLastMonth,
         monthlyImpressions,
+        organicImpressions,
+        paidImpressions,
         engagementRate,
         topPostReach,
         likes,
@@ -121,14 +184,15 @@ export default async function handler(req, res) {
         reposts,
         clicks,
         uniqueImpressions,
+        pageViews,
+        uniqueVisitors,
       },
+      // Remaining items LinkedIn's DMA product doesn't expose via any
+      // documented endpoint (no per-post breakdown, no lead gen without
+      // separate forms, no search-appearance data in this API surface).
       metrics: {
-        followersMetrics: ['Total Followers', 'Follower Growth (30 days)', 'Follower Growth Rate', 'New Followers vs Last Month'],
-        engagementMetrics: ['Post Impressions', 'Post Clicks', 'Engagement Rate', 'Likes', 'Comments', 'Shares', 'Average Engagement per Post'],
-        reachMetrics: ['Unique Impressions', 'Impressions by Post Type', 'Organic Impressions', 'Paid Impressions (if applicable)', 'Viral Impressions'],
-        contentMetrics: ['Top Performing Posts', 'Content by Type (image, video, link, etc)', 'Best Posting Times', 'Posts with Most Shares', 'Posts with Most Comments'],
-        visitorMetrics: ['Page Views', 'Unique Visitors', 'Search Appearances', 'Visitor Demographics'],
-        leadMetrics: ['Lead Gen Forms Opened', 'Lead Gen Forms Submitted', 'LinkedIn Lead Gen (if using forms)', 'CTA Clicks'],
+        contentMetrics: ['Top Performing Posts (requires per-post URNs, not available via aggregate page analytics)', 'Best Posting Times', 'Content by Type'],
+        leadMetrics: ['Lead Gen Forms Opened', 'Lead Gen Forms Submitted', 'CTA Clicks (requires Lead Gen Forms API - separate integration)'],
       },
     });
   } catch (error) {
