@@ -47,14 +47,16 @@ export default async function handler(req, res) {
       console.log('[LinkedIn] Could not verify organization:', err.message);
     }
 
-    // "organizationalPage" params failed to deserialize urn:li:organization:X -
-    // that URN type is wrong for this field. Look up the actual
-    // organizationalPage URN via dmaOrganizationalPageProfiles (pageEntity
-    // finder) before using it anywhere else.
+    // organizationalPage/pageEntity/followee ALL rejected urn:li:organization:X
+    // as an invalid/wrong-type URN - this whole DMA API family doesn't
+    // recognize that identifier at all. Query dmaOrganizationAcls (the
+    // roleAssignee finder returns the orgs THIS token's member actually
+    // administers) to discover the real identifiers this API expects,
+    // rather than guessing another URN prefix blind.
     let organizationalPageUrn = null;
     try {
-      const lookupRes = await fetch(
-        `https://api.linkedin.com/rest/dmaOrganizationalPageProfiles?q=pageEntity&pageEntity=${encodeURIComponent(organizationUrn)}`,
+      const aclsRes = await fetch(
+        `https://api.linkedin.com/rest/dmaOrganizationAcls?q=roleAssignee`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -64,16 +66,16 @@ export default async function handler(req, res) {
           },
         }
       );
-      const lookupText = await lookupRes.text();
-      debugResponses.push({ endpoint: 'dmaOrganizationalPageProfiles (pageEntity lookup)', status: lookupRes.status, fullBody: lookupText });
-      console.log(`[LinkedIn] pageEntity lookup status ${lookupRes.status}: ${lookupText}`);
+      const aclsText = await aclsRes.text();
+      debugResponses.push({ endpoint: 'dmaOrganizationAcls (roleAssignee)', status: aclsRes.status, fullBody: aclsText });
+      console.log(`[LinkedIn] dmaOrganizationAcls status ${aclsRes.status}: ${aclsText}`);
 
-      if (lookupRes.ok) {
-        const lookupData = JSON.parse(lookupText);
-        organizationalPageUrn = lookupData.elements?.[0]?.organizationalPage || lookupData.elements?.[0]?.entityUrn || null;
+      if (aclsRes.ok) {
+        const aclsData = JSON.parse(aclsText);
+        organizationalPageUrn = aclsData.elements?.[0]?.organization || aclsData.elements?.[0]?.organizationalTarget || null;
       }
     } catch (err) {
-      debugResponses.push({ endpoint: 'dmaOrganizationalPageProfiles (pageEntity lookup)', error: err.message });
+      debugResponses.push({ endpoint: 'dmaOrganizationAcls (roleAssignee)', error: err.message });
     }
 
     // Every YYYYMM version from 2023-2026 was rejected as NONEXISTENT_VERSION.
