@@ -17,11 +17,37 @@ export default async function handler(req, res) {
     });
   }
 
+  let credentials;
+  let debugInfo = {};
   try {
     // Decode credentials from base64
     const credentialsJson = Buffer.from(process.env.GOOGLE_ANALYTICS_CREDENTIALS, 'base64').toString('utf-8');
-    const credentials = JSON.parse(credentialsJson);
+    credentials = JSON.parse(credentialsJson);
 
+    debugInfo = {
+      envVarLength: process.env.GOOGLE_ANALYTICS_CREDENTIALS.length,
+      decodedLength: credentialsJson.length,
+      jsonKeys: Object.keys(credentials),
+      type: credentials.type,
+      project_id: credentials.project_id,
+      client_email: credentials.client_email,
+      private_key_id_present: !!credentials.private_key_id,
+      private_key_length: credentials.private_key?.length,
+      private_key_starts: credentials.private_key?.substring(0, 27),
+      private_key_ends: credentials.private_key?.slice(-25),
+      private_key_has_real_newlines: credentials.private_key?.includes('\n'),
+      private_key_has_literal_backslash_n: credentials.private_key?.includes('\\n'),
+      propertyId: process.env.GOOGLE_ANALYTICS_PROPERTY_ID,
+    };
+  } catch (parseErr) {
+    return res.status(500).json({
+      error: 'Failed to decode/parse credentials',
+      message: parseErr.message,
+      envVarLength: process.env.GOOGLE_ANALYTICS_CREDENTIALS?.length,
+    });
+  }
+
+  try {
     const analyticsDataClient = new BetaAnalyticsDataClient({
       credentials,
     });
@@ -119,6 +145,7 @@ export default async function handler(req, res) {
     res.status(500).json({
       error: 'Failed to fetch Google Analytics data',
       message: error.message,
+      debugInfo,
     });
   }
 }
