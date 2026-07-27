@@ -49,8 +49,11 @@ export default async function handler(req, res) {
     const start = now - 365 * 24 * 60 * 60 * 1000;
     const timeIntervals = `(timeRange:(start:${start},end:${now}))`;
 
+    // Top-level simple URN params take literal colons (confirmed earlier);
+    // timeIntervals is a structured/nested param whose parens and ':'
+    // separators must also stay literal - only percent-encode commas/spaces.
     const followerRes = await fetch(
-      `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationalPageUrn)}&analyticsType=FOLLOWER&timeIntervals=${encodeURIComponent(timeIntervals)}`,
+      `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${organizationalPageUrn}&analyticsType=FOLLOWER&timeIntervals=${timeIntervals}`,
       { headers: baseHeaders(accessToken) }
     );
     const followerData = await followerRes.json();
@@ -65,7 +68,7 @@ export default async function handler(req, res) {
     // Step 3: post engagement/impressions via content analytics (postGestures).
     try {
       const contentRes = await fetch(
-        `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&organizationalPage=${encodeURIComponent(organizationalPageUrn)}`,
+        `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&organizationalPage=${organizationalPageUrn}`,
         { headers: baseHeaders(accessToken) }
       );
       const contentData = await contentRes.json();
