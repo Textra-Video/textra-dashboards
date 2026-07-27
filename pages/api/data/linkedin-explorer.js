@@ -70,13 +70,20 @@ export default async function handler(req, res) {
       const text = await res.text();
       debugResponses.push({ endpoint: 'no LinkedIn-Version header', status: res.status, fullBody: text });
       console.log(`[LinkedIn] no version header status ${res.status}: ${text}`);
-      if (res.status !== 426) noVersionWorked = true;
+      // Only a genuine 2xx counts as "worked" - 400/426 are both rejections
+      if (res.ok) noVersionWorked = true;
     } catch (err) {
       debugResponses.push({ endpoint: 'no LinkedIn-Version header', error: err.message });
     }
 
     if (!noVersionWorked) {
-      const versionCandidates = ['202410', '202411', '202405', '202506', '202503', '202412', '202409', '202312'];
+      // Prior probes covered 202312-202506, all rejected as NONEXISTENT_VERSION.
+      // Today's real date is 2026-07-27, so also test the actual current
+      // window - the product may have GA'd more recently than assumed.
+      const versionCandidates = [
+        '202607', '202606', '202605', '202604', '202603', '202602', '202601',
+        '202512', '202511', '202510',
+      ];
       for (const version of versionCandidates) {
         try {
           const res = await fetch(probeUrl, {
@@ -92,6 +99,7 @@ export default async function handler(req, res) {
           debugResponses.push({ endpoint: `version probe ${version}`, status: res.status, fullBody: text });
           console.log(`[LinkedIn] version ${version} status ${res.status}: ${text}`);
 
+          // Stop at the first version that isn't rejected as nonexistent
           if (res.status !== 426) {
             workingVersion = version;
             break;
