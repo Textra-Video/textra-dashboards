@@ -52,7 +52,9 @@ export default async function handler(req, res) {
     // endpoint against several recent YYYYMM versions to find one that's
     // currently active, capturing full bodies so we know for certain rather
     // than guessing indefinitely.
-    const versionCandidates = ['202506', '202503', '202412', '202409', '202312'];
+    // 202410 previously returned 200 (not a version error) on this exact
+    // endpoint in an earlier deploy - test it first before falling back.
+    const versionCandidates = ['202410', '202411', '202405', '202506', '202503', '202412', '202409', '202312'];
     const probeUrl = `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${encodeURIComponent(organizationUrn)}`;
 
     let workingVersion = null;
@@ -63,6 +65,7 @@ export default async function handler(req, res) {
             'Authorization': `Bearer ${accessToken}`,
             'Accept': 'application/vnd.linkedin.v2+json',
             'LinkedIn-Version': version,
+            'X-Restli-Protocol-Version': '2.0.0',
             'Cache-Control': 'no-cache, no-store, must-revalidate',
           },
         });
@@ -113,6 +116,7 @@ export default async function handler(req, res) {
               'Authorization': `Bearer ${accessToken}`,
               'Accept': 'application/vnd.linkedin.v2+json',
               'LinkedIn-Version': workingVersion,
+              'X-Restli-Protocol-Version': '2.0.0',
               'Cache-Control': 'no-cache, no-store, must-revalidate',
             },
           });
