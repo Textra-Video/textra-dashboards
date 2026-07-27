@@ -34,7 +34,7 @@ export default async function handler(req, res) {
       const verifyRes = await fetch(`https://api.linkedin.com/rest/organizations/${organizationUrn.split(':').pop()}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Accept': 'application/vnd.linkedin.v2+json',
+          'Accept': 'application/json',
           'LinkedIn-Version': '202405',
         },
       });
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       const res = await fetch(probeUrl, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Accept': 'application/vnd.linkedin.v2+json',
+          'Accept': 'application/json',
           'X-Restli-Protocol-Version': '2.0.0',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
         },
@@ -89,7 +89,7 @@ export default async function handler(req, res) {
           const res = await fetch(probeUrl, {
             headers: {
               'Authorization': `Bearer ${accessToken}`,
-              'Accept': 'application/vnd.linkedin.v2+json',
+              'Accept': 'application/json',
               'LinkedIn-Version': version,
               'X-Restli-Protocol-Version': '2.0.0',
               'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -140,7 +140,7 @@ export default async function handler(req, res) {
         try {
           const headers = {
             'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/vnd.linkedin.v2+json',
+            'Accept': 'application/json',
             'X-Restli-Protocol-Version': '2.0.0',
             'Cache-Control': 'no-cache, no-store, must-revalidate',
           };
