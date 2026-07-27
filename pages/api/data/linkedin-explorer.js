@@ -30,7 +30,8 @@ export default async function handler(req, res) {
 
   try {
     // Step 1: resolve the organizationalPage URN from the organization URN.
-    // pageEntity is a union type - must be wrapped as (organization:URN).
+    // pageEntity is a union type - must be wrapped as (organization:URN),
+    // with the URN's own colons percent-encoded inside the structure.
     const pageEntityRes = await fetch(
       `https://api.linkedin.com/rest/dmaOrganizationalPageProfiles?q=pageEntity&pageEntity=(organization:${encodeURIComponent(organizationUrn)})`,
       { headers: baseHeaders(accessToken) }
@@ -42,79 +43,31 @@ export default async function handler(req, res) {
       throw new Error(`Could not resolve organizationalPage URN: ${JSON.stringify(pageEntityData)}`);
     }
 
+    // Flat top-level URN query params must also be percent-encoded.
+    const encodedPageUrn = encodeURIComponent(organizationalPageUrn);
+
     // Step 2: follower count via the trend finder (analyticsType=FOLLOWER).
-    // timeIntervals is required for trend; use a wide range to catch the
-    // page's full follower history in one call.
     const now = Date.now();
     const start = now - 365 * 24 * 60 * 60 * 1000;
-    // Match the doc's exact sample field order (end before start).
     const timeIntervals = `(timeRange:(end:${now},start:${start}))`;
 
-    const timeIntervalsWithGranularity = `(timeRange:(end:${now},start:${start}),timeGranularityType:MONTH)`;
+    const followerRes = await fetch(
+      `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodedPageUrn}&analyticsType=FOLLOWER&timeIntervals=${timeIntervals}`,
+      { headers: baseHeaders(accessToken) }
+    );
+    const followerData = await followerRes.json();
 
-    const followerVariants = [
-      {
-        name: 'trend (as-is)',
-        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${organizationalPageUrn}&analyticsType=FOLLOWER&timeIntervals=${timeIntervals}`,
-      },
-      {
-        name: 'trend + timeGranularityType',
-        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${organizationalPageUrn}&analyticsType=FOLLOWER&timeIntervals=${timeIntervalsWithGranularity}`,
-      },
-      {
-        name: 'dimension + dimensionType=REGION_GEO',
-        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${organizationalPageUrn}&analyticsType=FOLLOWER&dimensionType=REGION_GEO`,
-      },
-      {
-        // Doc's literal VISITOR trend example verbatim, only URN swapped -
-        // isolates whether the base structure works at all vs FOLLOWER
-        // specifically needing something undocumented.
-        name: 'trend VISITOR (doc-literal, with sourceTypes)',
-        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${organizationalPageUrn}&analyticsType=VISITOR&timeIntervals=${timeIntervals}&sourceTypes=List(JOBS,CAREER)`,
-      },
-      {
-        // Never actually proven raw colons work for a FLAT top-level param
-        // on THIS endpoint - the earlier "proof" (dmaOrganizationAcls) never
-        // sent this param as a value at all. Test percent-encoded here.
-        name: 'trend FOLLOWER, organizationalPage percent-encoded',
-        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationalPageUrn)}&analyticsType=FOLLOWER&timeIntervals=${timeIntervals}`,
-      },
-    ];
-
-    // Docs' exact BATCH_FIND syntax for checking per-action authorization -
-    // required per-action grant beyond OAuth scope, distinct from param
-    // syntax. Found via official docs, not guessed.
-    let authorizationCheck = null;
-    try {
-      const authUrl = `https://api.linkedin.com/rest/dmaOrganizationAuthorizations?bq=authorizationActionsAndImpersonator&authorizationActions=List((authorizationAction:(organizationAnalyticsAuthorizationAction:(actionType:FOLLOWER_ANALYTICS_READ))))&start=0&count=10`;
-      const authRes = await fetch(authUrl, { headers: baseHeaders(accessToken) });
-      authorizationCheck = { status: authRes.status, body: await authRes.json() };
-    } catch (err) {
-      authorizationCheck = { error: err.message };
-    }
-
-    const followerVariantResults = [];
-    for (const variant of followerVariants) {
-      try {
-        const r = await fetch(variant.url, { headers: baseHeaders(accessToken) });
-        const d = await r.json();
-        followerVariantResults.push({ name: variant.name, url: variant.url, status: r.status, body: d });
-
-        if (r.ok && Array.isArray(d.elements) && followers === 0) {
-          followers = d.elements.reduce((sum, el) => {
-            const v = el.value?.typeSpecificValue?.followerEdgeAnalyticsValue;
-            return sum + (v?.organicValue || 0) + (v?.sponsoredValue || 0);
-          }, 0);
-        }
-      } catch (err) {
-        followerVariantResults.push({ name: variant.name, url: variant.url, error: err.message });
-      }
+    if (Array.isArray(followerData.elements)) {
+      followers = followerData.elements.reduce((sum, el) => {
+        const v = el.value?.typeSpecificValue?.followerEdgeAnalyticsValue;
+        return sum + (v?.organicValue || 0) + (v?.sponsoredValue || 0);
+      }, 0);
     }
 
     // Step 3: post engagement/impressions via content analytics (postGestures).
     try {
       const contentRes = await fetch(
-        `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&organizationalPage=${organizationalPageUrn}`,
+        `https://api.linkedin.com/rest/dmaOrganizationalPageContentAnalytics?q=postGestures&organizationalPage=${encodedPageUrn}`,
         { headers: baseHeaders(accessToken) }
       );
       const contentData = await contentRes.json();
@@ -135,11 +88,6 @@ export default async function handler(req, res) {
     res.status(200).json({
       success: true,
       message: 'LinkedIn Analytics - Available Metrics',
-      debug: {
-        organizationalPageUrn,
-        authorizationCheck,
-        followerVariantResults,
-      },
       summary: {
         followers,
         monthlyImpressions,
