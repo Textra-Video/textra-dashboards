@@ -150,20 +150,35 @@ export default async function handler(req, res) {
       // deserialized fine in dmaOrganizationAcls). Try the organizationalPage
       // URN namespace with the same numeric ID.
       const orgId = organizationUrn.split(':').pop();
-      const pageUrn = organizationalPageUrn || `urn:li:organizationalPage:${orgId}`;
+      const orgPageUrn = organizationalPageUrn || `urn:li:organizationalPage:${orgId}`;
 
+      // Isolate the real cause with a direct comparison matrix: URN type
+      // (organization vs organizationalPage) x extra finder param, instead
+      // of guessing forward again on an ambiguous generic error.
       const dmaQueries = [
         {
-          name: 'dmaOrganizationalPageEdgeAnalytics (dimension)',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${pageUrn}`,
+          name: 'dimension + org URN (no extra param)',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${organizationUrn}`,
         },
         {
-          name: 'dmaOrganizationalPageEdgeAnalytics (trend)',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${pageUrn}`,
+          name: 'dimension + organizationalPage URN (no extra param)',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${orgPageUrn}`,
         },
         {
-          name: 'dmaOrganizationalPageFollows (followee)',
-          url: `https://api.linkedin.com/rest/dmaOrganizationalPageFollows?q=followee&followee=${pageUrn}`,
+          name: 'dimension + org URN + edgeType=FOLLOWERSHIP',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=dimension&organizationalPage=${organizationUrn}&edgeType=FOLLOWERSHIP`,
+        },
+        {
+          name: 'trend + org URN + edgeType=FOLLOWERSHIP',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${organizationUrn}&edgeType=FOLLOWERSHIP`,
+        },
+        {
+          name: 'followee + org URN',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageFollows?q=followee&followee=${organizationUrn}`,
+        },
+        {
+          name: 'followee + organizationalPage URN',
+          url: `https://api.linkedin.com/rest/dmaOrganizationalPageFollows?q=followee&followee=${orgPageUrn}`,
         },
       ];
 
