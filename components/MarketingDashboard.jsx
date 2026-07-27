@@ -32,7 +32,7 @@ export default function MarketingDashboard({ user }) {
     Promise.allSettled([
       axios.get('/api/data/linkedin-explorer', { params: { startDate: fmt(start30), endDate: fmt(today) } }),
       axios.get('/api/data/google-analytics-explorer'),
-      axios.get('/api/data/clarity-explorer'),
+      axios.get('/api/data/clarity-explorer', { params: { numOfDays: '3' } }),
     ]).then(([linkedin, analytics, clarity]) => {
       if (cancelled) return;
       setSnapshot({
@@ -180,7 +180,7 @@ export default function MarketingDashboard({ user }) {
             >
               <div style={{ fontSize: '24px', marginBottom: '8px' }}>👁️</div>
               <div style={{ fontWeight: 600, marginBottom: '4px' }}>Microsoft Clarity</div>
-              <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>User behavior, heatmaps, sessions</div>
+              <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>User behavior, rage clicks, sessions (last 3 days)</div>
               {snapshotLoading ? (
                 <div style={{ fontSize: '12px', color: '#999' }}>Loading…</div>
               ) : snapshot.clarity ? (
@@ -190,12 +190,12 @@ export default function MarketingDashboard({ user }) {
                     <div style={{ fontSize: '11px', color: '#888' }}>Sessions</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#7b4fa3' }}>{snapshot.clarity.uniqueUsers}</div>
-                    <div style={{ fontSize: '11px', color: '#888' }}>Unique Users</div>
+                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#7b4fa3' }}>{snapshot.clarity.distinctUsers}</div>
+                    <div style={{ fontSize: '11px', color: '#888' }}>Distinct Users</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#7b4fa3' }}>{snapshot.clarity.bounceRate}</div>
-                    <div style={{ fontSize: '11px', color: '#888' }}>Bounce Rate</div>
+                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#7b4fa3' }}>{snapshot.clarity.totalRageClicks}</div>
+                    <div style={{ fontSize: '11px', color: '#888' }}>Rage Clicks</div>
                   </div>
                 </div>
               ) : (
