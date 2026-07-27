@@ -72,6 +72,13 @@ export default async function handler(req, res) {
         name: 'trend VISITOR (doc-literal, with sourceTypes)',
         url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${organizationalPageUrn}&analyticsType=VISITOR&timeIntervals=${timeIntervals}&sourceTypes=List(JOBS,CAREER)`,
       },
+      {
+        // Never actually proven raw colons work for a FLAT top-level param
+        // on THIS endpoint - the earlier "proof" (dmaOrganizationAcls) never
+        // sent this param as a value at all. Test percent-encoded here.
+        name: 'trend FOLLOWER, organizationalPage percent-encoded',
+        url: `https://api.linkedin.com/rest/dmaOrganizationalPageEdgeAnalytics?q=trend&organizationalPage=${encodeURIComponent(organizationalPageUrn)}&analyticsType=FOLLOWER&timeIntervals=${timeIntervals}`,
+      },
     ];
 
     // Docs' exact BATCH_FIND syntax for checking per-action authorization -
