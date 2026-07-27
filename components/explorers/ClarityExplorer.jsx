@@ -118,6 +118,21 @@ export default function ClarityExplorer({ onMetricSelect }) {
         ],
       },
     },
+    {
+      key: 'avgScrollDepth',
+      icon: '📜',
+      label: 'Avg. Scroll Depth',
+      value: s.avgScrollDepth,
+      tooltip: 'Average percentage of each page visitors scroll down, across all sessions in the selected window.',
+      drilldown: {
+        title: '📜 Scroll Depth',
+        description: 'Scroll behavior context for the selected window.',
+        rows: [
+          { label: 'Avg. Scroll Depth', value: s.avgScrollDepth },
+          { label: 'Avg. Pages per Session', value: s.avgPagesPerSession },
+        ],
+      },
+    },
   ];
 
   return (

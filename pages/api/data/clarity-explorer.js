@@ -65,20 +65,29 @@ export default async function handler(req, res) {
 
     const rows = await response.json();
 
+    // Confirmed via one-time debug inspection of the real API response:
+    // Traffic uses totalSessionCount/totalBotSessionCount/distinctUserCount/
+    // pagesPerSessionPercentage (lowercase p). Behavior metrics
+    // (DeadClickCount, RageClickCount, ScriptErrorCount, etc.) are NOT
+    // counts in a field named after the metric - the actual occurrence
+    // count is in "subTotal", with sessionsCount/sessionsWithMetricPercentage
+    // as context fields.
     const traffic = findMetric(rows, 'Traffic');
     const scrollDepth = findMetric(rows, 'ScrollDepth');
     const engagementTime = findMetric(rows, 'EngagementTime');
     const deadClicks = findMetric(rows, 'DeadClickCount');
     const rageClicks = findMetric(rows, 'RageClickCount');
-    const quickback = findMetric(rows, 'QuickbackClick');
     const scriptErrors = findMetric(rows, 'ScriptErrorCount');
 
     const totalSessions = sumField(traffic, 'totalSessionCount');
     const totalBotSessions = sumField(traffic, 'totalBotSessionCount');
-    const distinctUsers = sumField(traffic, 'distinctUserCount') || sumField(traffic, 'distantUserCount');
+    const distinctUsers = sumField(traffic, 'distinctUserCount');
     const avgPagesPerSession = traffic.length
-      ? (traffic.reduce((sum, r) => sum + (parseFloat(r.PagesPerSessionPercentage) || 0), 0) / traffic.length).toFixed(2)
+      ? (traffic.reduce((sum, r) => sum + (parseFloat(r.pagesPerSessionPercentage) || 0), 0) / traffic.length).toFixed(2)
       : '0';
+    const avgScrollDepth = scrollDepth.length
+      ? Math.round(scrollDepth.reduce((sum, r) => sum + (parseFloat(r.averageScrollDepth) || 0), 0) / scrollDepth.length)
+      : 0;
 
     const deviceBreakdown = traffic.map((r) => ({
       label: r.Device || 'Unknown',
@@ -90,9 +99,10 @@ export default async function handler(req, res) {
       distinctUsers,
       botSessions: totalBotSessions,
       avgPagesPerSession,
-      totalDeadClicks: sumField(deadClicks, 'DeadClickCount') || deadClicks.length,
-      totalRageClicks: sumField(rageClicks, 'RageClickCount') || rageClicks.length,
-      totalScriptErrors: sumField(scriptErrors, 'ScriptErrorCount') || scriptErrors.length,
+      avgScrollDepth: `${avgScrollDepth}%`,
+      totalDeadClicks: sumField(deadClicks, 'subTotal'),
+      totalRageClicks: sumField(rageClicks, 'subTotal'),
+      totalScriptErrors: sumField(scriptErrors, 'subTotal'),
     };
 
     const result = {
