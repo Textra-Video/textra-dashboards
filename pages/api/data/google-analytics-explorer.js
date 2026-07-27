@@ -31,7 +31,7 @@ export default async function handler(req, res) {
       type: credentials.type,
       project_id: credentials.project_id,
       client_email: credentials.client_email,
-      private_key_id_present: !!credentials.private_key_id,
+      private_key_id: credentials.private_key_id,
       private_key_length: credentials.private_key?.length,
       private_key_starts: credentials.private_key?.substring(0, 27),
       private_key_ends: credentials.private_key?.slice(-25),
