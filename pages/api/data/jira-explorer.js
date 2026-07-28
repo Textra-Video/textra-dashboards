@@ -63,16 +63,26 @@ export default async function handler(req, res) {
   const baseUrl = `https://${JIRA_SITE_URL.replace(/^https?:\/\//, '')}`;
   const project = JIRA_PROJECT_KEY;
 
+  // Date range only applies to "Done" - a resolved-in-period count. The other
+  // cards (Open/In Progress/Backlog/Priority/Type) are current-state
+  // snapshots of the live backlog, not historical activity, so they aren't
+  // naturally date-scoped the way a "done in period" count is.
+  const { startDate, endDate } = req.query;
+  const jqlDate = (d) => d; // JQL accepts YYYY-MM-DD directly
+  const resolvedClause = startDate && endDate
+    ? `resolved >= "${jqlDate(startDate)}" AND resolved <= "${jqlDate(endDate)}"`
+    : 'resolved >= -30d';
+
   const jqlByCard = {
     openIssues: `project = ${project} AND statusCategory = "To Do"`,
     inProgress: `project = ${project} AND statusCategory = "In Progress"`,
-    doneLast30Days: `project = ${project} AND statusCategory = Done AND resolved >= -30d`,
+    doneInRange: `project = ${project} AND statusCategory = Done AND ${resolvedClause}`,
     openBugs: `project = ${project} AND issuetype = Bug AND statusCategory != Done`,
     totalBacklog: `project = ${project} AND statusCategory != Done`,
   };
 
   try {
-    const [openCount, inProgressCount, doneLast30Count, bugsOpenCount, backlogCount] = await Promise.all(
+    const [openCount, inProgressCount, doneInRangeCount, bugsOpenCount, backlogCount] = await Promise.all(
       Object.values(jqlByCard).map((jql) => jqlCount(baseUrl, jql))
     );
 
@@ -127,10 +137,11 @@ export default async function handler(req, res) {
       success: true,
       message: 'Jira Explorer - real data via Jira Cloud REST API',
       project,
+      dateRange: startDate && endDate ? { startDate, endDate } : { label: 'Last 30 Days' },
       summary: {
         openIssues: openCount,
         inProgress: inProgressCount,
-        doneLast30Days: doneLast30Count,
+        doneInRange: doneInRangeCount,
         openBugs: bugsOpenCount,
         totalBacklog: backlogCount,
       },

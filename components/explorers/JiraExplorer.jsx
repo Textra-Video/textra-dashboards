@@ -10,21 +10,60 @@ function InfoTooltip({ text }) {
   );
 }
 
+const PRIORITY_ICONS = {
+  Highest: '🔴',
+  High: '🟠',
+  Medium: '🟡',
+  Low: '🟢',
+  Lowest: '🔵',
+};
+
 export default function JiraExplorer({ onMetricSelect }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [drilldown, setDrilldown] = useState(null);
+  const [dateRange, setDateRange] = useState('last-30');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+
+  const getDateRangeParams = () => {
+    const today = new Date();
+    let startDate, endDate = today;
+
+    if (dateRange === 'last-year') {
+      startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 365);
+    } else if (dateRange === 'last-90') {
+      startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 90);
+    } else if (dateRange === 'last-30') {
+      startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 30);
+    } else if (dateRange === 'custom') {
+      startDate = customStart ? new Date(customStart) : null;
+      endDate = customEnd ? new Date(customEnd) : null;
+    }
+
+    const pad = (n) => String(n).padStart(2, '0');
+    const formatDate = (d) => d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` : undefined;
+
+    return {
+      startDate: formatDate(startDate),
+      endDate: formatDate(endDate),
+    };
+  };
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [dateRange, customStart, customEnd]);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get('/api/data/jira-explorer');
+      const params = getDateRangeParams();
+      const response = await axios.get('/api/data/jira-explorer', { params });
       if (response.data.success) {
         setData(response.data);
       }
@@ -93,25 +132,25 @@ export default function JiraExplorer({ onMetricSelect }) {
         rows: [
           { label: 'In Progress', value: s.inProgress },
           { label: 'Open (To Do)', value: s.openIssues },
-          { label: 'Done (Last 30 Days)', value: s.doneLast30Days },
+          { label: 'Done (selected period)', value: s.doneInRange },
         ],
         jiraLink: links.inProgress,
       },
     },
     {
-      key: 'doneLast30Days',
+      key: 'doneInRange',
       icon: '✅',
-      label: 'Done (30 Days)',
-      value: s.doneLast30Days,
-      tooltip: 'Issues resolved in the last 30 days - throughput indicator.',
+      label: 'Done',
+      value: s.doneInRange,
+      tooltip: 'Issues resolved in the selected date range - throughput indicator.',
       drilldown: {
-        title: '✅ Done (Last 30 Days)',
-        description: 'Recent throughput vs. remaining backlog.',
+        title: '✅ Done',
+        description: 'Recent throughput vs. remaining backlog for the selected period.',
         rows: [
-          { label: 'Done (Last 30 Days)', value: s.doneLast30Days },
+          { label: 'Done (selected period)', value: s.doneInRange },
           { label: 'Total Backlog', value: s.totalBacklog },
         ],
-        jiraLink: links.doneLast30Days,
+        jiraLink: links.doneInRange,
       },
     },
     {
@@ -161,21 +200,63 @@ export default function JiraExplorer({ onMetricSelect }) {
     },
   ];
 
+  // Each priority level gets its own card, in addition to (not replacing)
+  // Total Backlog above.
+  const priorityCards = (b.priorityBreakdown || []).map((p) => ({
+    key: `priority-${p.label}`,
+    icon: PRIORITY_ICONS[p.label] || '⚪',
+    label: `${p.label} Priority`,
+    value: p.value,
+    tooltip: `Open (not Done) issues with ${p.label} priority.`,
+    drilldown: {
+      title: `${PRIORITY_ICONS[p.label] || '⚪'} ${p.label} Priority`,
+      description: `Open issues at ${p.label} priority, out of the total backlog.`,
+      rows: [
+        { label: `${p.label} Priority`, value: p.value },
+        { label: 'Total Backlog', value: s.totalBacklog },
+      ],
+      jiraLink: p.url,
+    },
+  }));
+
+  const allCards = [...primaryCards, ...priorityCards];
+
   return (
     <div className="dashboard-content">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
         <div className="section-title" style={{ margin: 0 }}>Jira Explorer{data.project ? ` — ${data.project}` : ''}</div>
-        <button className="refresh-button" onClick={fetchData} disabled={loading}>
-          {loading ? 'Refreshing...' : 'Refresh Data'}
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text)', cursor: 'pointer', fontSize: '14px' }}
+          >
+            <option value="last-30">Last 30 Days</option>
+            <option value="last-90">Last 90 Days</option>
+            <option value="last-year">Last 12 Months</option>
+            <option value="custom">Custom Range</option>
+          </select>
+          {dateRange === 'custom' && (
+            <>
+              <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
+                style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text)', fontSize: '14px' }} />
+              <span style={{ color: 'var(--muted)' }}>to</span>
+              <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
+                style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text)', fontSize: '14px' }} />
+            </>
+          )}
+          <button className="refresh-button" onClick={fetchData} disabled={loading}>
+            {loading ? 'Refreshing...' : 'Refresh Data'}
+          </button>
+        </div>
       </div>
 
       <p style={{ fontSize: '12px', color: 'var(--muted)', margin: '0 0 16px 0' }}>
-        Click any card below for more detail.
+        Date range applies to "Done" only - other cards reflect the live backlog right now. Click any card below for more detail.
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '28px' }}>
-        {primaryCards.map((card) => (
+        {allCards.map((card) => (
           <button
             key={card.key}
             className="metric-card metric-card-clickable"
