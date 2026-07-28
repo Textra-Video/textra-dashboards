@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import SalesDashboard from '../components/SalesDashboard';
 import FinanceDashboard from '../components/FinanceDashboard';
 import MarketingDashboard from '../components/MarketingDashboard';
+import TechProductDashboard from '../components/TechProductDashboard';
 
 export default function Dashboards() {
   const router = useRouter();
@@ -79,6 +80,12 @@ export default function Dashboards() {
           >
             Marketing
           </button>
+          <button
+            className={`nav-button ${activeTab === 'techproduct' ? 'active' : ''}`}
+            onClick={() => setActiveTab('techproduct')}
+          >
+            Tech + Product
+          </button>
           <button className="logout-button" onClick={handleLogout}>
             Sign Out
           </button>
@@ -101,6 +108,7 @@ export default function Dashboards() {
         {activeTab === 'sales' && <SalesDashboard user={user} />}
         {activeTab === 'finance' && <FinanceDashboard user={user} />}
         {activeTab === 'marketing' && <MarketingDashboard user={user} />}
+        {activeTab === 'techproduct' && <TechProductDashboard user={user} />}
       </div>
     </div>
   );
