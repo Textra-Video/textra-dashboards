@@ -89,6 +89,8 @@ Provide a direct, actionable answer. If relevant, cite specific numbers from the
 
     // Try each model in priority order, falling back on quota/rate limit errors
     let lastError;
+    console.log('Attempting with models:', modelsToTry);
+
     for (const modelName of modelsToTry) {
       try {
         console.log('Trying model:', modelName);
@@ -96,6 +98,7 @@ Provide a direct, actionable answer. If relevant, cite specific numbers from the
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
 
+        console.log('Success with model:', modelName);
         return res.status(200).json({
           success: true,
           answer: responseText,
@@ -104,23 +107,49 @@ Provide a direct, actionable answer. If relevant, cite specific numbers from the
         });
       } catch (err) {
         lastError = err;
-        const errorMessage = err.message || '';
-        const is429 = err.status === 429 || errorMessage.includes('429') || errorMessage.includes('quota');
+        const errorMessage = (err.message || '').toLowerCase();
+        const errorString = JSON.stringify(err).toLowerCase();
 
-        if (is429) {
-          console.warn(`Model ${modelName} hit quota limit, trying next model...`);
+        // Check for quota/rate limit errors in multiple ways
+        const isQuotaError =
+          err.status === 429 ||
+          errorMessage.includes('429') ||
+          errorMessage.includes('quota') ||
+          errorMessage.includes('too many requests') ||
+          errorString.includes('quota exceeded') ||
+          errorString.includes('429');
+
+        console.error(`Model ${modelName} error:`, {
+          status: err.status,
+          message: err.message,
+          isQuotaError,
+        });
+
+        if (isQuotaError) {
+          console.warn(`Model ${modelName} hit quota/rate limit, trying next model...`);
           continue; // Try next model
         } else if (errorMessage.includes('no longer available')) {
           console.warn(`Model ${modelName} is no longer available, trying next model...`);
           continue; // Try next model
         } else {
           // Other errors should stop retrying
+          console.error(`Model ${modelName} failed with non-quota error, stopping retry`);
           throw err;
         }
       }
     }
 
-    // All models failed
+    // If we get here, all models have quota issues - provide helpful error
+    if (lastError && (lastError.message.includes('quota') || lastError.message.includes('429'))) {
+      console.error('All models have hit quota limits');
+      return res.status(429).json({
+        error: 'Quota exceeded',
+        message: 'All available AI models have hit their free tier quota. Please upgrade to a paid plan at https://console.cloud.google.com/billing',
+        retryAfter: 60,
+      });
+    }
+
+    // Unexpected failure
     throw lastError || new Error('All models exhausted');
   } catch (err) {
     console.error('Gemini query error:', err);
