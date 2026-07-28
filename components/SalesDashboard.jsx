@@ -286,8 +286,6 @@ export default function SalesDashboard({ user }) {
 
       {error && <div className="error">Error: {error}</div>}
 
-      {data && <AISalesQuery dashboardData={data} />}
-
       {data && (
         <div className="sales-layout">
           <nav className="sales-sidebar">
@@ -304,6 +302,7 @@ export default function SalesDashboard({ user }) {
 
           <div className="sales-content">
             {activeSection === 'overview' && (
+              <>
               <div className="metric-grid metric-grid-5">
                 <button className="metric-card metric-card-clickable" onClick={() => setActiveMetric('pipeline')}>
                   <div className="metric-label">
@@ -346,6 +345,11 @@ export default function SalesDashboard({ user }) {
                   <div className="metric-subtext">Based on Closed Won deals</div>
                 </button>
               </div>
+
+              <div style={{ marginTop: '16px' }}>
+                <AISalesQuery dashboardData={data} />
+              </div>
+              </>
             )}
 
             {activeSection === 'clients' && (
@@ -718,8 +722,6 @@ export default function SalesDashboard({ user }) {
           </div>
         </div>
       )}
-
-      {data && <AISalesQuery dashboardData={data} />}
     </div>
   );
 }
