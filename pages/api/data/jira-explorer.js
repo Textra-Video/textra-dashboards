@@ -12,9 +12,12 @@ function authHeader() {
 }
 
 async function jqlCount(baseUrl, jql) {
-  // maxResults=0 is rejected ("must be between 1 and 5,000") - fetch the
-  // minimum (1) and read the 'total' field instead.
-  const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=1&fields=summary`;
+  // The 'total' field on /search/jql is unreliable (returns 0 even when
+  // matching issues exist - a known issue with this endpoint since the
+  // 2025 /search deprecation). Fetch actual issues and count them instead.
+  // Capped at 100 - fine for a small team's backlog; would need pagination
+  // (nextPageToken) if any single category exceeds that.
+  const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary`;
   const res = await fetch(url, {
     headers: { Authorization: authHeader(), Accept: 'application/json' },
   });
@@ -23,7 +26,7 @@ async function jqlCount(baseUrl, jql) {
     throw new Error(`Jira search failed (${res.status}) for JQL "${jql}": ${body.substring(0, 300)}`);
   }
   const data = await res.json();
-  return data.total ?? 0;
+  return (data.issues || []).length;
 }
 
 async function jqlIssues(baseUrl, jql, fields, maxResults = 50) {
