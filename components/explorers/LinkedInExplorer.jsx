@@ -257,7 +257,12 @@ export default function LinkedInExplorer({ onMetricSelect }) {
     <div className="dashboard-content">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <div className="section-title" style={{ margin: 0 }}>LinkedIn Explorer</div>
+          <div className="section-title" style={{ margin: 0 }}>
+            LinkedIn Explorer
+            <a href="https://www.linkedin.com/company/108355800/admin/dashboard/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: '8px', fontSize: '14px', color: '#667eea', textDecoration: 'none', fontWeight: 'normal' }}>
+              (LinkedIn Dashboard)
+            </a>
+          </div>
           {lastUpdated && <p className="last-updated" style={{ margin: '4px 0 0 0' }}>Last updated: {lastUpdated}</p>}
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>

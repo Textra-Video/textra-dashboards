@@ -231,7 +231,12 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
     <div className="dashboard-content">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <div className="section-title" style={{ margin: 0 }}>Google Analytics Explorer</div>
+          <div className="section-title" style={{ margin: 0 }}>
+            Google Analytics Explorer
+            <a href="https://www.textra.video" target="_blank" rel="noopener noreferrer" style={{ marginLeft: '8px', fontSize: '14px', color: '#667eea', textDecoration: 'none', fontWeight: 'normal' }}>
+              (www.textra.video)
+            </a>
+          </div>
           {lastUpdated && <p className="last-updated" style={{ margin: '4px 0 0 0' }}>Last updated: {lastUpdated}</p>}
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -321,11 +326,6 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
         </div>
       )}
 
-      {data.unavailable?.length > 0 && (
-        <div style={{ marginTop: '8px', padding: '12px', background: '#fff8e6', borderRadius: '4px', fontSize: '12px', color: '#8a6d1a' }}>
-          ⚠️ Not available with this property's current setup: {data.unavailable.join(', ')}
-        </div>
-      )}
     </div>
   );
 }

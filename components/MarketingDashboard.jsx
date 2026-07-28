@@ -125,7 +125,12 @@ export default function MarketingDashboard({ user }) {
               style={{ background: '#f5f5f5', padding: '16px', borderRadius: '8px', cursor: 'pointer' }}
             >
               <div style={{ fontSize: '24px', marginBottom: '8px' }}>📈</div>
-              <div style={{ fontWeight: 600, marginBottom: '4px' }}>Google Analytics</div>
+              <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                Google Analytics
+                <a href="https://www.textra.video" target="_blank" rel="noopener noreferrer" style={{ marginLeft: '6px', fontSize: '12px', color: '#667eea', textDecoration: 'none' }}>
+                  (www.textra.video)
+                </a>
+              </div>
               <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>Website traffic, conversions, user behavior</div>
               {snapshotLoading ? (
                 <div style={{ fontSize: '12px', color: '#999' }}>Loading…</div>
@@ -154,7 +159,12 @@ export default function MarketingDashboard({ user }) {
               style={{ background: '#f5f5f5', padding: '16px', borderRadius: '8px', cursor: 'pointer' }}
             >
               <div style={{ fontSize: '24px', marginBottom: '8px' }}>💼</div>
-              <div style={{ fontWeight: 600, marginBottom: '4px' }}>LinkedIn</div>
+              <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                LinkedIn
+                <a href="https://www.linkedin.com/company/108355800/admin/dashboard/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: '6px', fontSize: '12px', color: '#667eea', textDecoration: 'none' }}>
+                  (Dashboard)
+                </a>
+              </div>
               <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>Followers, engagement, reach, leads</div>
               {snapshotLoading ? (
                 <div style={{ fontSize: '12px', color: '#999' }}>Loading…</div>
