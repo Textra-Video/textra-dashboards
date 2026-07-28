@@ -11,6 +11,10 @@ function authHeader() {
   return `Basic ${token}`;
 }
 
+function jqlViewerUrl(baseUrl, jql) {
+  return `${baseUrl}/issues/?jql=${encodeURIComponent(jql)}`;
+}
+
 async function jqlCount(baseUrl, jql) {
   // The 'total' field on /search/jql is unreliable (returns 0 even when
   // matching issues exist - a known issue with this endpoint since the
@@ -59,22 +63,20 @@ export default async function handler(req, res) {
   const baseUrl = `https://${JIRA_SITE_URL.replace(/^https?:\/\//, '')}`;
   const project = JIRA_PROJECT_KEY;
 
-  try {
-    const [
-      openCount,
-      inProgressCount,
-      doneLast30Count,
-      bugsOpenCount,
-      backlogCount,
-    ] = await Promise.all([
-      jqlCount(baseUrl, `project = ${project} AND statusCategory = "To Do"`),
-      jqlCount(baseUrl, `project = ${project} AND statusCategory = "In Progress"`),
-      jqlCount(baseUrl, `project = ${project} AND statusCategory = Done AND resolved >= -30d`),
-      jqlCount(baseUrl, `project = ${project} AND issuetype = Bug AND statusCategory != Done`),
-      jqlCount(baseUrl, `project = ${project} AND statusCategory != Done`),
-    ]);
+  const jqlByCard = {
+    openIssues: `project = ${project} AND statusCategory = "To Do"`,
+    inProgress: `project = ${project} AND statusCategory = "In Progress"`,
+    doneLast30Days: `project = ${project} AND statusCategory = Done AND resolved >= -30d`,
+    openBugs: `project = ${project} AND issuetype = Bug AND statusCategory != Done`,
+    totalBacklog: `project = ${project} AND statusCategory != Done`,
+  };
 
-    // Oldest unresolved issues (backlog aging)
+  try {
+    const [openCount, inProgressCount, doneLast30Count, bugsOpenCount, backlogCount] = await Promise.all(
+      Object.values(jqlByCard).map((jql) => jqlCount(baseUrl, jql))
+    );
+
+    // Oldest unresolved issues (backlog aging) - each links to the real issue
     let oldestIssues = [];
     try {
       const issues = await jqlIssues(
@@ -85,35 +87,37 @@ export default async function handler(req, res) {
       );
       oldestIssues = issues.map((i) => {
         const ageDays = Math.floor((Date.now() - new Date(i.fields.created).getTime()) / (1000 * 60 * 60 * 24));
-        return { label: `${i.key}: ${i.fields.summary}`.substring(0, 80), value: `${ageDays}d old` };
+        return {
+          label: `${i.key}: ${i.fields.summary}`.substring(0, 80),
+          value: `${ageDays}d old`,
+          url: `${baseUrl}/browse/${i.key}`,
+        };
       });
     } catch (e) {
       console.log('[Jira] Oldest issues unavailable:', e.message);
     }
 
-    // Priority breakdown (real data)
+    // Priority breakdown - each row links to that filtered issue list in Jira
     let priorityBreakdown = [];
     try {
       const priorities = ['Highest', 'High', 'Medium', 'Low', 'Lowest'];
-      const counts = await Promise.all(
-        priorities.map((p) => jqlCount(baseUrl, `project = ${project} AND priority = "${p}" AND statusCategory != Done`))
-      );
+      const jqls = priorities.map((p) => `project = ${project} AND priority = "${p}" AND statusCategory != Done`);
+      const counts = await Promise.all(jqls.map((jql) => jqlCount(baseUrl, jql)));
       priorityBreakdown = priorities
-        .map((label, i) => ({ label, value: counts[i] }))
+        .map((label, i) => ({ label, value: counts[i], url: jqlViewerUrl(baseUrl, jqls[i]) }))
         .filter((p) => p.value > 0);
     } catch (e) {
       console.log('[Jira] Priority breakdown unavailable:', e.message);
     }
 
-    // Issue type breakdown (real data)
+    // Issue type breakdown - each row links to that filtered issue list in Jira
     let typeBreakdown = [];
     try {
       const types = ['Bug', 'Story', 'Task', 'Epic', 'Sub-task'];
-      const counts = await Promise.all(
-        types.map((t) => jqlCount(baseUrl, `project = ${project} AND issuetype = "${t}" AND statusCategory != Done`))
-      );
+      const jqls = types.map((t) => `project = ${project} AND issuetype = "${t}" AND statusCategory != Done`);
+      const counts = await Promise.all(jqls.map((jql) => jqlCount(baseUrl, jql)));
       typeBreakdown = types
-        .map((label, i) => ({ label, value: counts[i] }))
+        .map((label, i) => ({ label, value: counts[i], url: jqlViewerUrl(baseUrl, jqls[i]) }))
         .filter((t) => t.value > 0);
     } catch (e) {
       console.log('[Jira] Type breakdown unavailable:', e.message);
@@ -130,6 +134,10 @@ export default async function handler(req, res) {
         openBugs: bugsOpenCount,
         totalBacklog: backlogCount,
       },
+      // JQL-filtered "view in Jira" links for each summary card's underlying query.
+      links: Object.fromEntries(
+        Object.entries(jqlByCard).map(([key, jql]) => [key, jqlViewerUrl(baseUrl, jql)])
+      ),
       breakdowns: {
         priorityBreakdown,
         typeBreakdown,

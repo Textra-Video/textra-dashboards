@@ -58,9 +58,10 @@ export default function JiraExplorer({ onMetricSelect }) {
 
   const s = data.summary || {};
   const b = data.breakdowns || {};
+  const links = data.links || {};
 
   const rowsFromBreakdown = (items) =>
-    (items || []).map((item) => ({ label: item.label, value: item.value }));
+    (items || []).map((item) => ({ label: item.label, value: item.value, url: item.url }));
 
   const primaryCards = [
     {
@@ -77,6 +78,7 @@ export default function JiraExplorer({ onMetricSelect }) {
           { label: 'Total Backlog (not Done)', value: s.totalBacklog },
           { label: 'In Progress', value: s.inProgress },
         ],
+        jiraLink: links.openIssues,
       },
     },
     {
@@ -93,6 +95,7 @@ export default function JiraExplorer({ onMetricSelect }) {
           { label: 'Open (To Do)', value: s.openIssues },
           { label: 'Done (Last 30 Days)', value: s.doneLast30Days },
         ],
+        jiraLink: links.inProgress,
       },
     },
     {
@@ -108,6 +111,7 @@ export default function JiraExplorer({ onMetricSelect }) {
           { label: 'Done (Last 30 Days)', value: s.doneLast30Days },
           { label: 'Total Backlog', value: s.totalBacklog },
         ],
+        jiraLink: links.doneLast30Days,
       },
     },
     {
@@ -118,10 +122,11 @@ export default function JiraExplorer({ onMetricSelect }) {
       tooltip: 'Unresolved issues of type "Bug".',
       drilldown: {
         title: '🐛 Open Bugs',
-        description: 'Bugs vs. other issue types in the open backlog (real data from Jira).',
+        description: 'Bugs vs. other issue types in the open backlog (real data from Jira, click a row to view that filter in Jira).',
         rows: rowsFromBreakdown(b.typeBreakdown).length > 0
           ? rowsFromBreakdown(b.typeBreakdown)
           : [{ label: 'No type breakdown available', value: '' }],
+        jiraLink: links.openBugs,
       },
     },
     {
@@ -132,10 +137,11 @@ export default function JiraExplorer({ onMetricSelect }) {
       tooltip: 'All unresolved issues (To Do + In Progress) across the project.',
       drilldown: {
         title: '📦 Backlog by Priority',
-        description: 'Open backlog broken down by priority (real data from Jira).',
+        description: 'Open backlog broken down by priority (real data from Jira, click a row to view that filter in Jira).',
         rows: rowsFromBreakdown(b.priorityBreakdown).length > 0
           ? rowsFromBreakdown(b.priorityBreakdown)
           : [{ label: 'No priority breakdown available', value: '' }],
+        jiraLink: links.totalBacklog,
       },
     },
     {
@@ -146,10 +152,11 @@ export default function JiraExplorer({ onMetricSelect }) {
       tooltip: 'Age of the longest-standing unresolved issue - a backlog health signal.',
       drilldown: {
         title: '⏳ Oldest Unresolved Issues',
-        description: 'The 5 longest-standing unresolved issues (real data from Jira).',
+        description: 'The 5 longest-standing unresolved issues (real data from Jira, click a row to open that issue).',
         rows: (b.oldestIssues || []).length > 0
           ? b.oldestIssues
           : [{ label: 'No unresolved issues', value: '' }],
+        jiraLink: links.totalBacklog,
       },
     },
   ];
@@ -195,12 +202,25 @@ export default function JiraExplorer({ onMetricSelect }) {
               <tbody>
                 {drilldown.rows.map((row, i) => (
                   <tr key={i}>
-                    <td>{row.label}</td>
+                    <td>
+                      {row.url ? (
+                        <a href={row.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
+                          {row.label} ↗
+                        </a>
+                      ) : (
+                        row.label
+                      )}
+                    </td>
                     <td className="amount">{row.value ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {drilldown.jiraLink && (
+              <a href={drilldown.jiraLink} target="_blank" rel="noopener noreferrer" className="view-in-xero-link">
+                Open in Jira →
+              </a>
+            )}
           </div>
         </div>
       )}
