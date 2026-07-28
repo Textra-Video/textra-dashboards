@@ -166,12 +166,14 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
       };
     };
 
-    // data.invoices = AUTHORISED only (for Accounts Receivable card)
+    // data.invoices = unpaid invoices (SUBMITTED, AUTHORISED, DRAFT) (for Accounts Receivable card)
+    // Excludes PAID and DRAFT invoices
     const outstandingInvoices = allInvoices.filter((inv) => {
       return inv.Type === 'ACCREC' &&
-             inv.Status === 'AUTHORISED' &&
+             (inv.Status === 'SUBMITTED' || inv.Status === 'AUTHORISED') &&
              isInvoiceInDateRange(inv, startDate, endDate);
     });
+    console.log(`[Xero] Outstanding invoices after filter: ${outstandingInvoices.length}`, outstandingInvoices.map(i => ({ num: i.InvoiceNumber, status: i.Status, total: i.Total })));
     data.invoices = outstandingInvoices.map(formatInvoiceForDisplay);
     data.totalReceivable = outstandingInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
 
