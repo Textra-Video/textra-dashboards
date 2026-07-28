@@ -394,18 +394,26 @@ export default function LinkedInExplorer({ onMetricSelect }) {
             <p className="modal-description">{drilldown.description}</p>
             <table className="drilldown-table">
               <tbody>
-                {drilldown.rows.map((row, i) => (
-                  <tr key={i} style={{ cursor: row.link ? 'pointer' : 'default' }} onClick={() => row.link && window.open(row.link, '_blank')}>
-                    <td style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {row.label}
-                      {row.tooltip && <InfoTooltip text={row.tooltip} />}
-                    </td>
-                    <td className="amount" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                      {row.value ?? '—'}
-                      {row.link && <span style={{ fontSize: '12px', color: '#0077B5' }}>↗</span>}
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+                  const seen = new Set();
+                  return drilldown.rows.filter((row) => {
+                    const key = `${row.label}::${row.value}`;
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                  }).map((row, i) => (
+                    <tr key={i} style={{ cursor: row.link ? 'pointer' : 'default' }} onClick={() => row.link && window.open(row.link, '_blank')}>
+                      <td style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {row.label}
+                        {row.tooltip && <InfoTooltip text={row.tooltip} />}
+                      </td>
+                      <td className="amount" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                        {row.value ?? '—'}
+                        {row.link && <span style={{ fontSize: '12px', color: '#0077B5' }}>↗</span>}
+                      </td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
