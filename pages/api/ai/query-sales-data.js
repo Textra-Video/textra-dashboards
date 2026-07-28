@@ -26,8 +26,8 @@ export default async function handler(req, res) {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-    // List available models via REST API to find the correct one
-    let model;
+    // List available models via REST API to find the correct ones
+    let modelsToTry = [];
     try {
       const listResponse = await fetch(
         'https://generativelanguage.googleapis.com/v1beta/models?key=' + process.env.GEMINI_API_KEY
@@ -44,37 +44,35 @@ export default async function handler(req, res) {
         'gemini-pro',
       ];
 
-      let selectedModel = null;
       for (const preferredName of modelPriority) {
         const model = availableModels.find(m => {
           const name = m.name.split('/').pop();
           return name === preferredName && m.supportedGenerationMethods?.includes('generateContent');
         });
         if (model) {
-          selectedModel = model;
-          break;
+          modelsToTry.push(model.name.split('/').pop());
         }
       }
 
-      // Fallback: find any model that supports generateContent
-      if (!selectedModel) {
-        selectedModel = availableModels.find(m =>
+      // Fallback: add any model that supports generateContent
+      if (modelsToTry.length === 0) {
+        const fallback = availableModels.find(m =>
           m.supportedGenerationMethods?.includes('generateContent') &&
           m.name.includes('gemini')
         );
+        if (fallback) {
+          modelsToTry.push(fallback.name.split('/').pop());
+        }
       }
 
-      if (!selectedModel) {
+      if (modelsToTry.length === 0) {
         throw new Error('No suitable Gemini text models found. Available: ' + modelNames.join(', '));
       }
 
-      const modelName = selectedModel.name.split('/').pop();
-      console.log('Using model:', modelName, '- Full name:', selectedModel.name);
-      model = genAI.getGenerativeModel({ model: modelName });
+      console.log('Models to try in order:', modelsToTry);
     } catch (err) {
       console.error('Error listing models:', err.message);
-      // Fallback to known working model
-      model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+      modelsToTry = ['gemini-pro'];
     }
 
     // Format the dashboard data for the prompt
@@ -89,14 +87,41 @@ USER QUESTION: ${query}
 
 Provide a direct, actionable answer. If relevant, cite specific numbers from the data. Keep response under 200 words unless the user asks for detailed analysis.`;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    // Try each model in priority order, falling back on quota/rate limit errors
+    let lastError;
+    for (const modelName of modelsToTry) {
+      try {
+        console.log('Trying model:', modelName);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
 
-    return res.status(200).json({
-      success: true,
-      answer: responseText,
-      timestamp: new Date().toISOString(),
-    });
+        return res.status(200).json({
+          success: true,
+          answer: responseText,
+          timestamp: new Date().toISOString(),
+          model: modelName,
+        });
+      } catch (err) {
+        lastError = err;
+        const errorMessage = err.message || '';
+        const is429 = err.status === 429 || errorMessage.includes('429') || errorMessage.includes('quota');
+
+        if (is429) {
+          console.warn(`Model ${modelName} hit quota limit, trying next model...`);
+          continue; // Try next model
+        } else if (errorMessage.includes('no longer available')) {
+          console.warn(`Model ${modelName} is no longer available, trying next model...`);
+          continue; // Try next model
+        } else {
+          // Other errors should stop retrying
+          throw err;
+        }
+      }
+    }
+
+    // All models failed
+    throw lastError || new Error('All models exhausted');
   } catch (err) {
     console.error('Gemini query error:', err);
     return res.status(500).json({
