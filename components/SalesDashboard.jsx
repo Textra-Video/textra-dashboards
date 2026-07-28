@@ -718,6 +718,8 @@ export default function SalesDashboard({ user }) {
           </div>
         </div>
       )}
+
+      {data && <AISalesQuery dashboardData={data} />}
     </div>
   );
 }
