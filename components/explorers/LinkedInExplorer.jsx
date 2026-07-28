@@ -126,11 +126,11 @@ export default function LinkedInExplorer({ onMetricSelect }) {
       tooltip: 'Total follower count. May show 0 on small/new pages - LinkedIn masks low numbers below a privacy threshold, not a real zero.',
       drilldown: {
         title: '👥 Followers',
-        description: 'Follower growth is derived from trend data directly and isn\'t affected by the total-follower privacy mask.',
+        description: 'Current followers and growth trends. Note: Total follower count may be privacy-masked by LinkedIn on smaller pages, but growth rates are always accurate.',
         rows: [
-          { label: 'Total Followers', value: s.followers },
-          { label: 'Growth (30 days)', value: s.followerGrowth30d },
-          { label: 'Growth vs Last Month', value: s.followerGrowthVsLastMonth },
+          { label: 'Current Total Followers', value: s.followers || '—' },
+          { label: 'New Followers (last 30d)', value: s.followerGrowth30d },
+          { label: 'Growth Rate vs Previous Month', value: s.followerGrowthVsLastMonth },
         ],
       },
     },
@@ -142,13 +142,25 @@ export default function LinkedInExplorer({ onMetricSelect }) {
       tooltip: 'Total times your posts were shown in someone’s feed in the selected period (organic + sponsored, includes repeat views).',
       drilldown: {
         title: '👁️ Impressions',
-        description: 'Breakdown of total impressions for the selected period.',
-        rows: [
-          { label: 'Total Impressions', value: s.monthlyImpressions },
-          { label: 'Organic', value: s.organicImpressions },
-          { label: 'Paid / Sponsored', value: s.paidImpressions },
-          { label: 'Unique Impressions', value: s.uniqueImpressions },
-        ],
+        description: 'Breakdown of total impressions for the selected period. Total should equal Organic + Paid.',
+        rows: (() => {
+          const total = s.monthlyImpressions || 0;
+          const organic = s.organicImpressions || 0;
+          const paid = s.paidImpressions || 0;
+          const calculated = organic + paid;
+          const mismatch = total !== calculated && total > 0 && calculated > 0;
+          return [
+            {
+              label: 'Total Impressions' + (mismatch ? ' ⚠️' : ''),
+              value: total,
+              ...(mismatch && { link: 'https://www.linkedin.com/company/108355800/admin/dashboard/' })
+            },
+            { label: 'Organic', value: organic },
+            { label: 'Paid / Sponsored', value: paid },
+            { label: 'Calculated Total (Organic + Paid)', value: calculated },
+            { label: 'Unique Impressions', value: s.uniqueImpressions },
+          ];
+        })(),
       },
     },
     {

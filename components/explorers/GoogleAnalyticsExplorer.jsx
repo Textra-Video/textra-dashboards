@@ -112,13 +112,24 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
       tooltip: 'Distinct people who visited your site in the selected period.',
       drilldown: {
         title: '👤 Users',
-        description: 'User breakdown and first-touch acquisition source for the selected period (real data from Google Analytics).',
-        rows: [
-          { label: 'Total Users', value: s.totalUsers },
-          { label: 'New Users', value: s.newUsers },
-          { label: 'Returning Users', value: s.totalUsers - s.newUsers >= 0 ? s.totalUsers - s.newUsers : '—' },
-          ...rowsFromBreakdown(b.firstUserSourceMedium).map((r) => ({ label: `First touch: ${r.label}`, value: r.value })),
-        ],
+        description: 'User breakdown and first-touch acquisition source for the selected period (real data from Google Analytics). Total should equal New + Returning.',
+        rows: (() => {
+          const total = s.totalUsers || 0;
+          const newUsers = s.newUsers || 0;
+          const returning = Math.max(0, total - newUsers);
+          const calculated = newUsers + returning;
+          const mismatch = total !== calculated && total > 0 && calculated > 0;
+          return [
+            {
+              label: 'Total Users' + (mismatch ? ' ⚠️' : ''),
+              value: total,
+            },
+            { label: 'New Users', value: newUsers },
+            { label: 'Returning Users', value: returning },
+            { label: 'Calculated Total (New + Returning)', value: calculated },
+            ...rowsFromBreakdown(b.firstUserSourceMedium).map((r) => ({ label: `First touch: ${r.label}`, value: r.value })),
+          ];
+        })(),
       },
     },
     {
