@@ -130,7 +130,7 @@ export default function LinkedInExplorer({ onMetricSelect }) {
         rows: [
           { label: 'Current Total Followers', value: s.followers || '—' },
           { label: 'New Followers (last 30d)', value: s.followerGrowth30d },
-          { label: 'Growth Rate vs Previous Month', value: s.followerGrowthVsLastMonth, tooltip: 'Change vs last month (+ = accelerating).' },
+          { label: 'Growth Rate vs Previous Month', value: s.followerGrowthVsLastMonth },
         ],
       },
     },
@@ -157,8 +157,8 @@ export default function LinkedInExplorer({ onMetricSelect }) {
             },
             { label: 'Organic', value: organic },
             { label: 'Paid / Sponsored', value: paid },
-            { label: 'Calculated Total (Organic + Paid)', value: calculated, tooltip: 'Should match Total Impressions above.' },
-            { label: 'Unique Impressions', value: s.uniqueImpressions, tooltip: 'Distinct people (deduplicated).' },
+            { label: 'Calculated Total (Organic + Paid)', value: calculated },
+            { label: 'Unique Impressions', value: s.uniqueImpressions },
           ];
         })(),
       },
@@ -199,7 +199,7 @@ export default function LinkedInExplorer({ onMetricSelect }) {
         rows: [
           { label: 'Unique Reach', value: s.topPostReach },
           { label: 'Total Impressions', value: s.monthlyImpressions },
-          { label: 'Reach as % of Impressions', value: pct(s.topPostReach, s.monthlyImpressions), tooltip: 'Higher % = wider reach.' },
+          { label: 'Reach as % of Impressions', value: pct(s.topPostReach, s.monthlyImpressions) },
         ],
       },
     },
@@ -252,7 +252,7 @@ export default function LinkedInExplorer({ onMetricSelect }) {
           { label: 'Total Reposts', value: s.reposts },
           { label: 'Unique Impressions', value: s.uniqueImpressions },
           { label: 'Reposts per 1,000 Impressions', value: s.monthlyImpressions ? ((s.reposts / s.monthlyImpressions) * 1000).toFixed(1) : '—' },
-          { label: 'Engagement Rate (Reposts %)', value: s.monthlyImpressions ? `${((s.reposts / s.monthlyImpressions) * 100).toFixed(2)}%` : '—', tooltip: 'Key for reach amplification.' },
+          { label: 'Engagement Rate (Reposts %)', value: s.monthlyImpressions ? `${((s.reposts / s.monthlyImpressions) * 100).toFixed(2)}%` : '—' },
           { label: 'View Posts with Reposts', value: '→', link: 'https://www.linkedin.com/company/108355800/admin/dashboard/' },
         ],
       },
@@ -394,26 +394,15 @@ export default function LinkedInExplorer({ onMetricSelect }) {
             <p className="modal-description">{drilldown.description}</p>
             <table className="drilldown-table">
               <tbody>
-                {(() => {
-                  const seen = new Set();
-                  return drilldown.rows.filter((row) => {
-                    const key = `${row.label}::${row.value}`;
-                    if (seen.has(key)) return false;
-                    seen.add(key);
-                    return true;
-                  }).map((row, i) => (
-                    <tr key={i} style={{ cursor: row.link ? 'pointer' : 'default' }} onClick={() => row.link && window.open(row.link, '_blank')}>
-                      <td style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {row.label}
-                        {row.tooltip && <InfoTooltip text={row.tooltip} />}
-                      </td>
-                      <td className="amount" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                        {row.value ?? '—'}
-                        {row.link && <span style={{ fontSize: '12px', color: '#0077B5' }}>↗</span>}
-                      </td>
-                    </tr>
-                  ));
-                })()}
+                {drilldown.rows.map((row, i) => (
+                  <tr key={i} style={{ cursor: row.link ? 'pointer' : 'default' }} onClick={() => row.link && window.open(row.link, '_blank')}>
+                    <td>{row.label}</td>
+                    <td className="amount" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                      {row.value ?? '—'}
+                      {row.link && <span style={{ fontSize: '12px', color: '#0077B5' }}>↗</span>}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

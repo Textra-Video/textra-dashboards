@@ -130,8 +130,8 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
             },
             { label: 'New Users', value: newUsers },
             { label: 'Returning Users', value: returning },
-            { label: 'Calculated Total (New + Returning)', value: calculated, tooltip: 'Should match Total Users above.' },
-            ...rowsFromBreakdown(b.firstUserSourceMedium).map((r) => ({ label: `First touch: ${r.label}`, value: r.value, tooltip: 'Acquisition channel.' })),
+            { label: 'Calculated Total (New + Returning)', value: calculated },
+            ...rowsFromBreakdown(b.firstUserSourceMedium).map((r) => ({ label: `First touch: ${r.label}`, value: r.value })),
           ];
         })(),
       },
@@ -182,10 +182,10 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
         description: 'Session engagement metrics for the selected period. Engagement Rate and Bounce Rate are inverses.',
         rows: [
           { label: 'Engagement Rate', value: s.engagementRate },
-          { label: 'Bounce Rate (inverse)', value: s.bounceRate, tooltip: 'Sessions that left without engaging (opposite of above).' },
-          { label: 'Engaged Sessions vs Total', value: s.totalSessions ? `${((parseFloat(s.engagementRate) / 100) * s.totalSessions).toFixed(0)} of ${s.totalSessions}` : '—', tooltip: 'Count of engaged vs total sessions.' },
-          { label: 'Avg. Time in Engaged Sessions', value: s.averageSessionDuration, tooltip: 'Average session duration for engaged visitors.' },
-          { label: 'Conversion Rate', value: s.totalSessions ? `${((s.conversions / s.totalSessions) * 100).toFixed(2)}%` : '—', tooltip: 'Sessions that converted.' },
+          { label: 'Bounce Rate (inverse)', value: s.bounceRate },
+          { label: 'Engaged Sessions vs Total', value: s.totalSessions ? `${((parseFloat(s.engagementRate) / 100) * s.totalSessions).toFixed(0)} of ${s.totalSessions}` : '—' },
+          { label: 'Avg. Time in Engaged Sessions', value: s.averageSessionDuration },
+          { label: 'Conversion Rate', value: s.totalSessions ? `${((s.conversions / s.totalSessions) * 100).toFixed(2)}%` : '—' },
         ],
       },
     },
@@ -216,7 +216,7 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
         rows: [
           { label: 'Conversions', value: s.conversions },
           { label: 'Total Sessions', value: s.totalSessions },
-          { label: 'Conversion Rate', value: s.totalSessions ? `${((s.conversions / s.totalSessions) * 100).toFixed(2)}%` : '—', tooltip: 'Conversions as % of sessions.' },
+          { label: 'Conversion Rate', value: s.totalSessions ? `${((s.conversions / s.totalSessions) * 100).toFixed(2)}%` : '—' },
         ],
       },
     },
@@ -346,26 +346,15 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
             <p className="modal-description">{drilldown.description}</p>
             <table className="drilldown-table">
               <tbody>
-                {(() => {
-                  const seen = new Set();
-                  return drilldown.rows.filter((row) => {
-                    const key = `${row.label}::${row.value}`;
-                    if (seen.has(key)) return false;
-                    seen.add(key);
-                    return true;
-                  }).map((row, i) => (
-                    <tr key={i} style={{ cursor: row.link ? 'pointer' : 'default' }} onClick={() => row.link && window.open(row.link, '_blank')}>
-                      <td style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {row.label}
-                        {row.tooltip && <InfoTooltip text={row.tooltip} />}
-                      </td>
-                      <td className="amount" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                        {row.value ?? '—'}
-                        {row.link && <span style={{ fontSize: '12px', color: '#667eea' }}>↗</span>}
-                      </td>
-                    </tr>
-                  ));
-                })()}
+                {drilldown.rows.map((row, i) => (
+                  <tr key={i} style={{ cursor: row.link ? 'pointer' : 'default' }} onClick={() => row.link && window.open(row.link, '_blank')}>
+                    <td>{row.label}</td>
+                    <td className="amount" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                      {row.value ?? '—'}
+                      {row.link && <span style={{ fontSize: '12px', color: '#667eea' }}>↗</span>}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
