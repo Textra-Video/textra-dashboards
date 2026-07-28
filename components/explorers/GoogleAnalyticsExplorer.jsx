@@ -172,11 +172,13 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
       tooltip: 'Percentage of sessions that lasted 10+ seconds, had a conversion event, or viewed 2+ pages.',
       drilldown: {
         title: '🔥 Engagement Rate',
-        description: 'Engagement vs. bounce for the selected period.',
+        description: 'Session engagement metrics for the selected period. Engagement Rate and Bounce Rate are inverses.',
         rows: [
           { label: 'Engagement Rate', value: s.engagementRate },
-          { label: 'Bounce Rate', value: s.bounceRate },
-          { label: 'Avg. Session Duration', value: s.averageSessionDuration },
+          { label: 'Bounce Rate (inverse)', value: s.bounceRate },
+          { label: 'Engaged Sessions vs Total', value: s.totalSessions ? `${((parseFloat(s.engagementRate) / 100) * s.totalSessions).toFixed(0)} of ${s.totalSessions}` : '—' },
+          { label: 'Avg. Time in Engaged Sessions', value: s.averageSessionDuration },
+          { label: 'Conversion Rate', value: s.totalSessions ? `${((s.conversions / s.totalSessions) * 100).toFixed(2)}%` : '—' },
         ],
       },
     },
