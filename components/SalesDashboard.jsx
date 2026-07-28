@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/router';
 import { Bar, Doughnut } from 'react-chartjs-2';
+import AISalesQuery from './AISalesQuery';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -284,6 +285,8 @@ export default function SalesDashboard({ user }) {
       </div>
 
       {error && <div className="error">Error: {error}</div>}
+
+      {data && <AISalesQuery dashboardData={data} />}
 
       {data && (
         <div className="sales-layout">
