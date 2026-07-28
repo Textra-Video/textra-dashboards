@@ -36,18 +36,40 @@ export default async function handler(req, res) {
       const modelNames = availableModels.map(m => m.name);
       console.log('Available models:', modelNames);
 
-      // Find a text generation model that supports generateContent
-      const textModel = availableModels.find(m =>
-        m.supportedGenerationMethods?.includes('generateContent') &&
-        m.name.includes('gemini')
-      );
+      // Priority order for model selection
+      const modelPriority = [
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-pro',
+      ];
 
-      if (!textModel) {
+      let selectedModel = null;
+      for (const preferredName of modelPriority) {
+        const model = availableModels.find(m => {
+          const name = m.name.split('/').pop();
+          return name === preferredName && m.supportedGenerationMethods?.includes('generateContent');
+        });
+        if (model) {
+          selectedModel = model;
+          break;
+        }
+      }
+
+      // Fallback: find any model that supports generateContent
+      if (!selectedModel) {
+        selectedModel = availableModels.find(m =>
+          m.supportedGenerationMethods?.includes('generateContent') &&
+          m.name.includes('gemini')
+        );
+      }
+
+      if (!selectedModel) {
         throw new Error('No suitable Gemini text models found. Available: ' + modelNames.join(', '));
       }
 
-      const modelName = textModel.name.split('/').pop();
-      console.log('Using model:', modelName);
+      const modelName = selectedModel.name.split('/').pop();
+      console.log('Using model:', modelName, '- Full name:', selectedModel.name);
       model = genAI.getGenerativeModel({ model: modelName });
     } catch (err) {
       console.error('Error listing models:', err.message);
