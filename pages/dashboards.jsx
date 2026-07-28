@@ -5,6 +5,7 @@ import SalesDashboard from '../components/SalesDashboard';
 import FinanceDashboard from '../components/FinanceDashboard';
 import MarketingDashboard from '../components/MarketingDashboard';
 import TechProductDashboard from '../components/TechProductDashboard';
+import OpsDashboard from '../components/OpsDashboard';
 
 export default function Dashboards() {
   const router = useRouter();
@@ -86,6 +87,12 @@ export default function Dashboards() {
           >
             Tech + Product
           </button>
+          <button
+            className={`nav-button ${activeTab === 'ops' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ops')}
+          >
+            Ops
+          </button>
           <button className="logout-button" onClick={handleLogout}>
             Sign Out
           </button>
@@ -109,6 +116,7 @@ export default function Dashboards() {
         {activeTab === 'finance' && <FinanceDashboard user={user} />}
         {activeTab === 'marketing' && <MarketingDashboard user={user} />}
         {activeTab === 'techproduct' && <TechProductDashboard user={user} />}
+        {activeTab === 'ops' && <OpsDashboard user={user} />}
       </div>
     </div>
   );

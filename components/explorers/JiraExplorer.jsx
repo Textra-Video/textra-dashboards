@@ -18,11 +18,12 @@ const PRIORITY_ICONS = {
   Lowest: '🔵',
 };
 
-export default function JiraExplorer({ onMetricSelect }) {
+export default function JiraExplorer({ onMetricSelect, project, boardUrl, title }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [drilldown, setDrilldown] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [dateRange, setDateRange] = useState('last-30');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -56,16 +57,17 @@ export default function JiraExplorer({ onMetricSelect }) {
 
   useEffect(() => {
     fetchData();
-  }, [dateRange, customStart, customEnd]);
+  }, [dateRange, customStart, customEnd, project]);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = getDateRangeParams();
+      const params = { ...getDateRangeParams(), ...(project ? { project } : {}) };
       const response = await axios.get('/api/data/jira-explorer', { params });
       if (response.data.success) {
         setData(response.data);
+        setLastUpdated(new Date().toLocaleString('en-GB'));
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch Jira data');
@@ -223,8 +225,13 @@ export default function JiraExplorer({ onMetricSelect }) {
 
   return (
     <div className="dashboard-content">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
-        <div className="section-title" style={{ margin: 0 }}>Jira Explorer{data.project ? ` — ${data.project}` : ''}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <div className="section-title" style={{ margin: 0, marginBottom: '6px' }}>{title || 'Jira Explorer'}{data.project ? ` — ${data.project}` : ''}</div>
+          {lastUpdated && (
+            <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Last updated: {lastUpdated}</div>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <select
             value={dateRange}
@@ -245,6 +252,11 @@ export default function JiraExplorer({ onMetricSelect }) {
                 style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text)', fontSize: '14px' }} />
             </>
           )}
+          {boardUrl && (
+            <a href={boardUrl} target="_blank" rel="noopener noreferrer" className="refresh-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
+              Open Board ↗
+            </a>
+          )}
           <button className="refresh-button" onClick={fetchData} disabled={loading}>
             {loading ? 'Refreshing...' : 'Refresh Data'}
           </button>
@@ -256,7 +268,7 @@ export default function JiraExplorer({ onMetricSelect }) {
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '28px' }}>
-        {allCards.map((card) => (
+        {primaryCards.map((card) => (
           <button
             key={card.key}
             className="metric-card metric-card-clickable"
@@ -272,6 +284,29 @@ export default function JiraExplorer({ onMetricSelect }) {
           </button>
         ))}
       </div>
+
+      {priorityCards.length > 0 && (
+        <div style={{ marginBottom: '28px' }}>
+          <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--muted)', marginBottom: '12px' }}>Priority Breakdown</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px' }}>
+            {priorityCards.map((card) => (
+              <button
+                key={card.key}
+                className="metric-card metric-card-clickable"
+                style={{ padding: '18px 16px', minHeight: '120px' }}
+                onClick={() => setDrilldown(card.drilldown)}
+              >
+                <div style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', opacity: 0.9, lineHeight: 1.3 }}>
+                  <span>{card.icon}</span>
+                  <span>{card.label}</span>
+                  <InfoTooltip text={card.tooltip} />
+                </div>
+                <div style={{ fontSize: '26px', fontWeight: 'bold', marginTop: 'auto' }}>{card.value ?? '—'}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {drilldown && (
         <div className="modal-overlay" onClick={() => setDrilldown(null)}>

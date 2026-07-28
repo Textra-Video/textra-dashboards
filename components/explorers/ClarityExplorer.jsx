@@ -15,6 +15,7 @@ export default function ClarityExplorer({ onMetricSelect }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [drilldown, setDrilldown] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [numOfDays, setNumOfDays] = useState('3');
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function ClarityExplorer({ onMetricSelect }) {
       const response = await axios.get('/api/data/clarity-explorer', { params: { numOfDays } });
       if (response.data.success) {
         setData(response.data);
+        setLastUpdated(new Date().toLocaleString('en-GB'));
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch Clarity data');
@@ -138,7 +140,10 @@ export default function ClarityExplorer({ onMetricSelect }) {
   return (
     <div className="dashboard-content">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
-        <div className="section-title" style={{ margin: 0 }}>Microsoft Clarity</div>
+        <div>
+          <div className="section-title" style={{ margin: 0 }}>Microsoft Clarity</div>
+          {lastUpdated && <p className="last-updated" style={{ margin: '4px 0 0 0' }}>Last updated: {lastUpdated}</p>}
+        </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <select
             value={numOfDays}

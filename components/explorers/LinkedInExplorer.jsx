@@ -40,6 +40,7 @@ export default function LinkedInExplorer({ onMetricSelect }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [drilldown, setDrilldown] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [dateRange, setDateRange] = useState('last-year'); // 'last-year', 'last-90', 'last-30', 'custom'
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -83,6 +84,7 @@ export default function LinkedInExplorer({ onMetricSelect }) {
       const response = await axios.get('/api/data/linkedin-explorer', { params });
       if (response.data.success) {
         setData(response.data);
+        setLastUpdated(new Date().toLocaleString('en-GB'));
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch LinkedIn data');
@@ -254,7 +256,10 @@ export default function LinkedInExplorer({ onMetricSelect }) {
   return (
     <div className="dashboard-content">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
-        <div className="section-title" style={{ margin: 0 }}>LinkedIn Explorer</div>
+        <div>
+          <div className="section-title" style={{ margin: 0 }}>LinkedIn Explorer</div>
+          {lastUpdated && <p className="last-updated" style={{ margin: '4px 0 0 0' }}>Last updated: {lastUpdated}</p>}
+        </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <select
             value={dateRange}

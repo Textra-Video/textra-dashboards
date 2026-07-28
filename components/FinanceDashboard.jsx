@@ -99,7 +99,7 @@ export default function FinanceDashboard({ user }) {
       if (response.data.success) {
         setData(response.data.data);
         setNotConnected(false);
-        setLastUpdated(new Date().toLocaleTimeString('en-GB'));
+        setLastUpdated(new Date().toLocaleString('en-GB'));
       }
     } catch (err) {
       if (err.response?.data?.error === 'not_connected') {

@@ -7,7 +7,7 @@ import ClarityExplorer from './explorers/ClarityExplorer';
 export default function MarketingDashboard({ user }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedMetrics, setSelectedMetrics] = useState({});
-  const [snapshot, setSnapshot] = useState({ linkedin: null, analytics: null, clarity: null });
+  const [snapshot, setSnapshot] = useState({ linkedin: null, analytics: null, clarity: null, lastUpdated: null });
   const [snapshotLoading, setSnapshotLoading] = useState(true);
 
   const handleMetricSelection = (source, metrics) => {
@@ -39,6 +39,7 @@ export default function MarketingDashboard({ user }) {
         linkedin: linkedin.status === 'fulfilled' && linkedin.value.data.success ? linkedin.value.data.summary : null,
         analytics: analytics.status === 'fulfilled' && analytics.value.data.success ? analytics.value.data.summary : null,
         clarity: clarity.status === 'fulfilled' && clarity.value.data.success ? clarity.value.data.summary : null,
+        lastUpdated: new Date().toLocaleString('en-GB'),
       });
       setSnapshotLoading(false);
     });
@@ -114,6 +115,11 @@ export default function MarketingDashboard({ user }) {
           <p style={{ color: '#666', marginBottom: '20px' }}>
             Snapshot of your marketing channels (last 30 days). Click a channel below for full detail.
           </p>
+          {snapshot.lastUpdated && (
+            <p style={{ fontSize: '12px', color: '#999', marginBottom: '16px' }}>
+              Last updated: {snapshot.lastUpdated}
+            </p>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
             <div

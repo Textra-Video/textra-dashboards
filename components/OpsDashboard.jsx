@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import JiraExplorer from './explorers/JiraExplorer';
 
-export default function TechProductDashboard({ user }) {
+export default function OpsDashboard({ user }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [snapshot, setSnapshot] = useState({ jira: null, lastUpdated: null });
   const [snapshotLoading, setSnapshotLoading] = useState(true);
@@ -13,7 +13,7 @@ export default function TechProductDashboard({ user }) {
     let cancelled = false;
     setSnapshotLoading(true);
 
-    axios.get('/api/data/jira-explorer', { params: { project: 'TP' } }).then((jira) => {
+    axios.get('/api/data/jira-explorer', { params: { project: 'BO' } }).then((jira) => {
       if (cancelled) return;
       setSnapshot({
         jira: jira.data.success ? jira.data.summary : null,
@@ -29,7 +29,7 @@ export default function TechProductDashboard({ user }) {
 
   return (
     <div className="dashboard-content">
-      <div className="section-title">🛠️ Tech + Product Dashboard</div>
+      <div className="section-title">🔧 Operations Dashboard</div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #ddd', paddingBottom: '16px' }}>
         <button
@@ -65,7 +65,7 @@ export default function TechProductDashboard({ user }) {
       {activeTab === 'overview' && (
         <div>
           <p style={{ color: '#666', marginBottom: '20px' }}>
-            Snapshot of engineering and product delivery. Click a tool below for full detail.
+            Operations team backlog and priority tracking. Click a tool below for full detail.
           </p>
           {snapshot.lastUpdated && (
             <p style={{ fontSize: '12px', color: '#999', marginBottom: '16px' }}>
@@ -80,7 +80,7 @@ export default function TechProductDashboard({ user }) {
             >
               <div style={{ fontSize: '24px', marginBottom: '8px' }}>📋</div>
               <div style={{ fontWeight: 600, marginBottom: '4px' }}>Jira</div>
-              <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>Sprints, backlog, bugs, throughput</div>
+              <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>Tasks, issues, priorities</div>
               {snapshotLoading ? (
                 <div style={{ fontSize: '12px', color: '#999' }}>Loading…</div>
               ) : snapshot.jira ? (
@@ -108,9 +108,9 @@ export default function TechProductDashboard({ user }) {
 
       {activeTab === 'jira' && (
         <JiraExplorer
-          project="TP"
-          boardUrl="https://textravideo.atlassian.net/jira/core/projects/TP/board"
-          title="🛠️ Jira"
+          project="BO"
+          boardUrl="https://textravideo.atlassian.net/jira/core/projects/BO/list?jql=project+%3D+BO+ORDER+BY+cf%5B10019%5D+ASC&atlOrigin=eyJpIjoiZjkwY2UyZjMzZmU5NDNlYzg3MjlkOWRiNTgzYTdhYTQiLCJwIjoiaiJ9"
+          title="🔧 Jira"
         />
       )}
     </div>

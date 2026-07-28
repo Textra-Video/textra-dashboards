@@ -216,6 +216,18 @@ body {
   align-items: stretch;
 }
 
+/* Forces exactly 5 columns in one row (Sales Pipeline overview) instead of
+   auto-fit wrapping - narrower cards, but always a single row of 5. */
+.metric-grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+@media (max-width: 900px) {
+  .metric-grid-5 {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+}
+
 .metric-card {
   background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
   color: white;

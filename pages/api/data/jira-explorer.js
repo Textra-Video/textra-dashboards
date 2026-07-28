@@ -46,6 +46,21 @@ async function jqlIssues(baseUrl, jql, fields, maxResults = 50) {
   return data.issues || [];
 }
 
+// All priorities actually configured on this Jira instance (not a
+// hardcoded list) - includes any custom priorities beyond the 5 defaults.
+async function fetchAllPriorityNames(baseUrl) {
+  const url = `${baseUrl}/rest/api/3/priority`;
+  const res = await fetch(url, {
+    headers: { Authorization: authHeader(), Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Jira priority list failed (${res.status}): ${body.substring(0, 300)}`);
+  }
+  const data = await res.json();
+  return (Array.isArray(data) ? data : data.values || []).map((p) => p.name);
+}
+
 export default async function handler(req, res) {
   const { JIRA_SITE_URL, JIRA_EMAIL, JIRA_API_TOKEN, JIRA_PROJECT_KEY } = process.env;
 
@@ -61,7 +76,9 @@ export default async function handler(req, res) {
   }
 
   const baseUrl = `https://${JIRA_SITE_URL.replace(/^https?:\/\//, '')}`;
-  const project = JIRA_PROJECT_KEY;
+  // Allow overriding the project via ?project=BO for reuse across boards
+  // (Tech + Product uses DT, Ops uses BO) without needing separate env vars.
+  const project = req.query.project || JIRA_PROJECT_KEY;
 
   // Date range only applies to "Done" - a resolved-in-period count. The other
   // cards (Open/In Progress/Backlog/Priority/Type) are current-state
@@ -107,15 +124,15 @@ export default async function handler(req, res) {
       console.log('[Jira] Oldest issues unavailable:', e.message);
     }
 
-    // Priority breakdown - each row links to that filtered issue list in Jira
+    // Priority breakdown - discovers ALL priorities actually configured on
+    // this Jira instance (not a hardcoded list, so custom priorities show
+    // up too) and shows every one as its own card, even at zero.
     let priorityBreakdown = [];
     try {
-      const priorities = ['Highest', 'High', 'Medium', 'Low', 'Lowest'];
+      const priorities = await fetchAllPriorityNames(baseUrl);
       const jqls = priorities.map((p) => `project = ${project} AND priority = "${p}" AND statusCategory != Done`);
       const counts = await Promise.all(jqls.map((jql) => jqlCount(baseUrl, jql)));
-      priorityBreakdown = priorities
-        .map((label, i) => ({ label, value: counts[i], url: jqlViewerUrl(baseUrl, jqls[i]) }))
-        .filter((p) => p.value > 0);
+      priorityBreakdown = priorities.map((label, i) => ({ label, value: counts[i], url: jqlViewerUrl(baseUrl, jqls[i]) }));
     } catch (e) {
       console.log('[Jira] Priority breakdown unavailable:', e.message);
     }

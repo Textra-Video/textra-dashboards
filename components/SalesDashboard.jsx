@@ -118,7 +118,7 @@ export default function SalesDashboard({ user }) {
       if (response.data.success) {
         setData(response.data.data);
         setNotConnected(false);
-        setLastUpdated(new Date().toLocaleTimeString('en-GB'));
+        setLastUpdated(new Date().toLocaleString('en-GB'));
       }
     } catch (err) {
       if (err.response?.data?.error === 'not_connected') {
@@ -301,7 +301,7 @@ export default function SalesDashboard({ user }) {
 
           <div className="sales-content">
             {activeSection === 'overview' && (
-              <div className="metric-grid">
+              <div className="metric-grid metric-grid-5">
                 <button className="metric-card metric-card-clickable" onClick={() => setActiveMetric('pipeline')}>
                   <div className="metric-label">
                     Total Pipeline

@@ -15,6 +15,7 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [drilldown, setDrilldown] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [dateRange, setDateRange] = useState('last-30');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -58,6 +59,7 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
       const response = await axios.get('/api/data/google-analytics-explorer', { params });
       if (response.data.success) {
         setData(response.data);
+        setLastUpdated(new Date().toLocaleString('en-GB'));
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch Google Analytics data');
@@ -228,7 +230,10 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
   return (
     <div className="dashboard-content">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
-        <div className="section-title" style={{ margin: 0 }}>Google Analytics Explorer</div>
+        <div>
+          <div className="section-title" style={{ margin: 0 }}>Google Analytics Explorer</div>
+          {lastUpdated && <p className="last-updated" style={{ margin: '4px 0 0 0' }}>Last updated: {lastUpdated}</p>}
+        </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <select
             value={dateRange}
