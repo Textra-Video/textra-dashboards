@@ -103,11 +103,12 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
       tooltip: 'Distinct people who visited your site in the selected period.',
       drilldown: {
         title: '👤 Users',
-        description: 'User breakdown for the selected period.',
+        description: 'User breakdown and first-touch acquisition source for the selected period (real data from Google Analytics).',
         rows: [
           { label: 'Total Users', value: s.totalUsers },
           { label: 'New Users', value: s.newUsers },
           { label: 'Returning Users', value: s.totalUsers - s.newUsers >= 0 ? s.totalUsers - s.newUsers : '—' },
+          ...rowsFromBreakdown(b.firstUserSourceMedium).map((r) => ({ label: `First touch: ${r.label}`, value: r.value })),
         ],
       },
     },
@@ -186,11 +187,42 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
         ],
       },
     },
+    {
+      key: 'eventCount',
+      icon: '⚡',
+      label: 'Events',
+      value: s.eventCount,
+      tooltip: 'Total tracked events (page views, clicks, scrolls, etc.) in the selected period.',
+      drilldown: {
+        title: '⚡ Events & Session Sources',
+        description: 'Event volume and where sessions actually came from for the selected period (real data from Google Analytics).',
+        rows: [
+          { label: 'Total Events', value: s.eventCount },
+          { label: 'Avg. Engagement Time per User', value: s.avgEngagementTimePerUser },
+          ...rowsFromBreakdown(b.sessionSourceMedium),
+        ],
+      },
+    },
+    {
+      key: 'topLocations',
+      icon: '📍',
+      label: 'Top Locations',
+      value: (b.cityBreakdown || [])[0]?.label || '—',
+      tooltip: 'City with the most active users in the selected period.',
+      drilldown: {
+        title: '📍 Top Locations',
+        description: 'Active users by city for the selected period (real data from Google Analytics).',
+        rows: rowsFromBreakdown(b.cityBreakdown).length > 0
+          ? rowsFromBreakdown(b.cityBreakdown)
+          : [{ label: 'No location data available', value: '' }],
+      },
+    },
   ];
 
   const secondaryStats = [
     { key: 'averageSessionDuration', label: 'Avg. Session Duration', value: s.averageSessionDuration, tooltip: 'Average time spent per session in the selected period.' },
     { key: 'newUsers', label: 'New Users', value: s.newUsers, tooltip: 'First-time visitors in the selected period.' },
+    { key: 'avgEngagementTimePerUser', label: 'Avg. Engagement / User', value: s.avgEngagementTimePerUser, tooltip: 'Average total time each user actively engaged with the site in the selected period.' },
   ];
 
   return (

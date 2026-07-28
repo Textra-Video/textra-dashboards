@@ -123,6 +123,82 @@ export default async function handler(req, res) {
       console.log('[GA] Top pages unavailable:', e.message);
     }
 
+    // City breakdown (real data, for a geographic drilldown)
+    let cityBreakdown = [];
+    try {
+      const cityRes = await analyticsDataClient.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [dateRange],
+        dimensions: [{ name: 'city' }],
+        metrics: [{ name: 'activeUsers' }],
+        orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+        limit: 8,
+      });
+      cityBreakdown = (cityRes[0].rows || []).map((r) => ({
+        label: r.dimensionValues[0].value,
+        value: parseInt(r.metricValues[0].value) || 0,
+      }));
+    } catch (e) {
+      console.log('[GA] City breakdown unavailable:', e.message);
+    }
+
+    // Session source/medium (real data - where sessions actually came from)
+    let sessionSourceMedium = [];
+    try {
+      const sessRes = await analyticsDataClient.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [dateRange],
+        dimensions: [{ name: 'sessionSourceMedium' }],
+        metrics: [{ name: 'sessions' }],
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: 8,
+      });
+      sessionSourceMedium = (sessRes[0].rows || []).map((r) => ({
+        label: r.dimensionValues[0].value,
+        value: parseInt(r.metricValues[0].value) || 0,
+      }));
+    } catch (e) {
+      console.log('[GA] Session source/medium unavailable:', e.message);
+    }
+
+    // First-user source/medium (real data - where new users were first acquired from)
+    let firstUserSourceMedium = [];
+    try {
+      const fuRes = await analyticsDataClient.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [dateRange],
+        dimensions: [{ name: 'firstUserSourceMedium' }],
+        metrics: [{ name: 'activeUsers' }],
+        orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+        limit: 8,
+      });
+      firstUserSourceMedium = (fuRes[0].rows || []).map((r) => ({
+        label: r.dimensionValues[0].value,
+        value: parseInt(r.metricValues[0].value) || 0,
+      }));
+    } catch (e) {
+      console.log('[GA] First-user source/medium unavailable:', e.message);
+    }
+
+    // Event count + avg engagement time per user (real data)
+    let eventCount = 0, avgEngagementTimePerUser = '0m 0s';
+    try {
+      const engRes = await analyticsDataClient.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [dateRange],
+        metrics: [{ name: 'eventCount' }, { name: 'userEngagementDuration' }, { name: 'activeUsers' }],
+      });
+      if (engRes[0].rows?.length > 0) {
+        const row = engRes[0].rows[0];
+        eventCount = parseInt(row.metricValues[0].value) || 0;
+        const totalEngagementSeconds = parseFloat(row.metricValues[1].value) || 0;
+        const activeUsersForEng = parseInt(row.metricValues[2].value) || 1;
+        avgEngagementTimePerUser = fmtDuration(totalEngagementSeconds / activeUsersForEng);
+      }
+    } catch (e) {
+      console.log('[GA] Event count/engagement time unavailable:', e.message);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Google Analytics Explorer - Available Metrics',
@@ -134,6 +210,8 @@ export default async function handler(req, res) {
         totalSessions,
         pageViews,
         averageSessionDuration,
+        avgEngagementTimePerUser,
+        eventCount,
         bounceRate,
         engagementRate,
         conversions,
@@ -141,6 +219,9 @@ export default async function handler(req, res) {
       breakdowns: {
         channelBreakdown,
         deviceBreakdown,
+        cityBreakdown,
+        sessionSourceMedium,
+        firstUserSourceMedium,
         topPages,
       },
       // Not wired up - GA4 tracks these under different setups (ecommerce,
