@@ -25,7 +25,35 @@ export default async function handler(req, res) {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+
+    // List available models via REST API to find the correct one
+    let model;
+    try {
+      const listResponse = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models?key=' + process.env.GEMINI_API_KEY
+      );
+      const { models: availableModels } = await listResponse.json();
+      const modelNames = availableModels.map(m => m.name);
+      console.log('Available models:', modelNames);
+
+      // Find a text generation model that supports generateContent
+      const textModel = availableModels.find(m =>
+        m.supportedGenerationMethods?.includes('generateContent') &&
+        m.name.includes('gemini')
+      );
+
+      if (!textModel) {
+        throw new Error('No suitable Gemini text models found. Available: ' + modelNames.join(', '));
+      }
+
+      const modelName = textModel.name.split('/').pop();
+      console.log('Using model:', modelName);
+      model = genAI.getGenerativeModel({ model: modelName });
+    } catch (err) {
+      console.error('Error listing models:', err.message);
+      // Fallback to known working model
+      model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    }
 
     // Format the dashboard data for the prompt
     const dataContext = formatSalesData(dashboardData);
