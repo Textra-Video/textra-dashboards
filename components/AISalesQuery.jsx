@@ -196,7 +196,7 @@ export default function AISalesQuery({ dashboardData }) {
           )}
 
           <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--muted)' }}>
-            💡 Tip: Ask specific questions about pipeline, deals, stages, sources, or trends.
+            💡 Powered by Groq • Tip: Ask specific questions about pipeline, deals, stages, sources, or trends.
           </div>
         </div>
       )}

@@ -1,18 +1,17 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return res.status(401).json({
-      error: 'Gemini API not configured',
-      message: 'Missing GEMINI_API_KEY environment variable',
+      error: 'Groq API not configured',
+      message: 'Missing GROQ_API_KEY environment variable',
       setupInstructions: {
-        step1: 'Go to https://makersuite.google.com/app/apikey',
-        step2: 'Create a new API key',
-        step3: 'Add to environment variable: GEMINI_API_KEY',
+        step1: 'Go to https://console.groq.com/keys',
+        step2: 'Create an API key',
+        step3: 'Add to environment variable: GROQ_API_KEY',
+        note: 'Groq offers free tier with very fast inference',
       },
     });
   }
@@ -22,57 +21,6 @@ export default async function handler(req, res) {
 
     if (!query || !dashboardData) {
       return res.status(400).json({ error: 'Missing query or dashboardData' });
-    }
-
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-    // List available models via REST API to find the correct ones
-    let modelsToTry = [];
-    try {
-      const listResponse = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models?key=' + process.env.GEMINI_API_KEY
-      );
-      const { models: availableModels } = await listResponse.json();
-      const modelNames = availableModels.map(m => m.name);
-      console.log('Available models:', modelNames);
-
-      // Priority order for model selection
-      const modelPriority = [
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-pro',
-      ];
-
-      for (const preferredName of modelPriority) {
-        const model = availableModels.find(m => {
-          const name = m.name.split('/').pop();
-          return name === preferredName && m.supportedGenerationMethods?.includes('generateContent');
-        });
-        if (model) {
-          modelsToTry.push(model.name.split('/').pop());
-        }
-      }
-
-      // Fallback: add any model that supports generateContent
-      if (modelsToTry.length === 0) {
-        const fallback = availableModels.find(m =>
-          m.supportedGenerationMethods?.includes('generateContent') &&
-          m.name.includes('gemini')
-        );
-        if (fallback) {
-          modelsToTry.push(fallback.name.split('/').pop());
-        }
-      }
-
-      if (modelsToTry.length === 0) {
-        throw new Error('No suitable Gemini text models found. Available: ' + modelNames.join(', '));
-      }
-
-      console.log('Models to try in order:', modelsToTry);
-    } catch (err) {
-      console.error('Error listing models:', err.message);
-      modelsToTry = ['gemini-pro'];
     }
 
     // Format the dashboard data for the prompt
@@ -87,72 +35,106 @@ USER QUESTION: ${query}
 
 Provide a direct, actionable answer. If relevant, cite specific numbers from the data. Keep response under 200 words unless the user asks for detailed analysis.`;
 
-    // Try each model in priority order, falling back on quota/rate limit errors
+    // Models to try with Groq (in priority order)
+    const modelsToTry = [
+      'llama-3.3-70b-versatile',
+      'llama-3.2-90b-vision-preview',
+      'gemma2-9b-it',
+    ];
+
     let lastError;
-    console.log('Attempting with models:', modelsToTry);
+    console.log('Attempting Groq with models:', modelsToTry);
 
     for (const modelName of modelsToTry) {
       try {
-        console.log('Trying model:', modelName);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
+        console.log('Trying Groq model:', modelName);
 
-        console.log('Success with model:', modelName);
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a sales analytics assistant. Provide direct, actionable answers with specific numbers from the data when relevant.',
+              },
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+            max_tokens: 500,
+            temperature: 0.7,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          const error = new Error(data.error?.message || 'Groq API error');
+          error.status = response.status;
+          error.data = data;
+          throw error;
+        }
+
+        const responseText = data.choices?.[0]?.message?.content || 'No response from model';
+
+        console.log('Success with Groq model:', modelName);
         return res.status(200).json({
           success: true,
           answer: responseText,
           timestamp: new Date().toISOString(),
           model: modelName,
+          provider: 'groq',
         });
       } catch (err) {
         lastError = err;
         const errorMessage = (err.message || '').toLowerCase();
         const errorString = JSON.stringify(err).toLowerCase();
 
-        // Check for quota/rate limit errors in multiple ways
-        const isQuotaError =
+        // Check for rate limit errors
+        const isRateLimitError =
           err.status === 429 ||
           errorMessage.includes('429') ||
-          errorMessage.includes('quota') ||
+          errorMessage.includes('rate limit') ||
           errorMessage.includes('too many requests') ||
-          errorString.includes('quota exceeded') ||
-          errorString.includes('429');
+          errorString.includes('rate_limit');
 
-        console.error(`Model ${modelName} error:`, {
+        console.error(`Groq model ${modelName} error:`, {
           status: err.status,
           message: err.message,
-          isQuotaError,
+          isRateLimitError,
         });
 
-        if (isQuotaError) {
-          console.warn(`Model ${modelName} hit quota/rate limit, trying next model...`);
-          continue; // Try next model
-        } else if (errorMessage.includes('no longer available')) {
-          console.warn(`Model ${modelName} is no longer available, trying next model...`);
+        if (isRateLimitError) {
+          console.warn(`Model ${modelName} hit rate limit, trying next model...`);
           continue; // Try next model
         } else {
           // Other errors should stop retrying
-          console.error(`Model ${modelName} failed with non-quota error, stopping retry`);
+          console.error(`Model ${modelName} failed with non-rate-limit error, stopping retry`);
           throw err;
         }
       }
     }
 
-    // If we get here, all models have quota issues - provide helpful error
-    if (lastError && (lastError.message.includes('quota') || lastError.message.includes('429'))) {
-      console.error('All models have hit quota limits');
+    // If we get here, all models have rate limit issues
+    if (lastError && lastError.status === 429) {
+      console.error('All Groq models have hit rate limits');
       return res.status(429).json({
-        error: 'Quota exceeded',
-        message: 'All available AI models have hit their free tier quota. Please upgrade to a paid plan at https://console.cloud.google.com/billing',
+        error: 'Rate limit exceeded',
+        message: 'Groq API rate limit exceeded. Please try again in a few moments.',
         retryAfter: 60,
       });
     }
 
     // Unexpected failure
-    throw lastError || new Error('All models exhausted');
+    throw lastError || new Error('All Groq models exhausted');
   } catch (err) {
-    console.error('Gemini query error:', err);
+    console.error('Groq query error:', err);
     return res.status(500).json({
       error: 'Failed to process query',
       message: err.message,
