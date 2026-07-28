@@ -127,11 +127,12 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
             {
               label: 'Total Users' + (mismatch ? ' ⚠️' : ''),
               value: total,
+              tooltip: 'Distinct individual people who visited your site in this period.',
             },
-            { label: 'New Users', value: newUsers },
-            { label: 'Returning Users', value: returning },
-            { label: 'Calculated Total (New + Returning)', value: calculated },
-            ...rowsFromBreakdown(b.firstUserSourceMedium).map((r) => ({ label: `First touch: ${r.label}`, value: r.value })),
+            { label: 'New Users', value: newUsers, tooltip: 'First-time visitors who came to your site in this period.' },
+            { label: 'Returning Users', value: returning, tooltip: 'People who have visited your site before and returned in this period.' },
+            { label: 'Calculated Total (New + Returning)', value: calculated, tooltip: 'Sum of new and returning users. Should match Total Users above.' },
+            ...rowsFromBreakdown(b.firstUserSourceMedium).map((r) => ({ label: `First touch: ${r.label}`, value: r.value, tooltip: 'Where new users first discovered your site (Google Ads, organic search, direct link, etc).' })),
           ];
         })(),
       },
@@ -146,8 +147,8 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
         title: '📈 Sessions by Channel',
         description: 'Where your sessions came from in the selected period (real data from Google Analytics).',
         rows: rowsFromBreakdown(b.channelBreakdown).length > 0
-          ? rowsFromBreakdown(b.channelBreakdown)
-          : [{ label: 'No channel data available', value: '' }],
+          ? rowsFromBreakdown(b.channelBreakdown).map((r) => ({ ...r, tooltip: 'Sessions grouped by traffic source channel (organic, paid, direct, social, referral, etc).' }))
+          : [{ label: 'No channel data available', value: '', tooltip: '' }],
       },
     },
     {
@@ -163,9 +164,10 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
           ? (b.topPages || []).map((page) => ({
               label: page.label,
               value: page.value,
-              link: page.label.startsWith('/') ? `https://www.textra.video${page.label}` : `https://www.textra.video/${page.label}`
+              link: page.label.startsWith('/') ? `https://www.textra.video${page.label}` : `https://www.textra.video/${page.label}`,
+              tooltip: 'Number of times this page was viewed. Click to open the page.'
             }))
-          : [{ label: 'No page data available', value: '' }],
+          : [{ label: 'No page data available', value: '', tooltip: '' }],
       },
     },
     {
@@ -178,11 +180,11 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
         title: '🔥 Engagement Rate',
         description: 'Session engagement metrics for the selected period. Engagement Rate and Bounce Rate are inverses.',
         rows: [
-          { label: 'Engagement Rate', value: s.engagementRate },
-          { label: 'Bounce Rate (inverse)', value: s.bounceRate },
-          { label: 'Engaged Sessions vs Total', value: s.totalSessions ? `${((parseFloat(s.engagementRate) / 100) * s.totalSessions).toFixed(0)} of ${s.totalSessions}` : '—' },
-          { label: 'Avg. Time in Engaged Sessions', value: s.averageSessionDuration },
-          { label: 'Conversion Rate', value: s.totalSessions ? `${((s.conversions / s.totalSessions) * 100).toFixed(2)}%` : '—' },
+          { label: 'Engagement Rate', value: s.engagementRate, tooltip: 'Percentage of sessions where users stayed 10+ seconds, viewed 2+ pages, or triggered a conversion.' },
+          { label: 'Bounce Rate (inverse)', value: s.bounceRate, tooltip: 'Percentage of sessions that left without engaging (opposite of Engagement Rate).' },
+          { label: 'Engaged Sessions vs Total', value: s.totalSessions ? `${((parseFloat(s.engagementRate) / 100) * s.totalSessions).toFixed(0)} of ${s.totalSessions}` : '—', tooltip: 'Actual count of engaged sessions compared to total sessions.' },
+          { label: 'Avg. Time in Engaged Sessions', value: s.averageSessionDuration, tooltip: 'Average time spent per session among visitors who engaged with your site.' },
+          { label: 'Conversion Rate', value: s.totalSessions ? `${((s.conversions / s.totalSessions) * 100).toFixed(2)}%` : '—', tooltip: 'Percentage of sessions that resulted in a conversion event.' },
         ],
       },
     },
@@ -196,8 +198,8 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
         title: '🚪 Bounce Rate',
         description: 'Bounce vs. engagement for the selected period.',
         rows: [
-          { label: 'Bounce Rate', value: s.bounceRate },
-          { label: 'Engagement Rate', value: s.engagementRate },
+          { label: 'Bounce Rate', value: s.bounceRate, tooltip: 'Percentage of sessions where users left without staying 10+ seconds, viewing 2+ pages, or converting.' },
+          { label: 'Engagement Rate', value: s.engagementRate, tooltip: 'Percentage of sessions that met engagement criteria (opposite of Bounce Rate).' },
         ],
       },
     },
@@ -211,9 +213,9 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
         title: '🎯 Conversions',
         description: 'Conversions relative to total sessions for the selected period.',
         rows: [
-          { label: 'Conversions', value: s.conversions },
-          { label: 'Total Sessions', value: s.totalSessions },
-          { label: 'Conversion Rate', value: s.totalSessions ? `${((s.conversions / s.totalSessions) * 100).toFixed(2)}%` : '—' },
+          { label: 'Conversions', value: s.conversions, tooltip: 'Total conversion events (form submissions, sign-ups, purchases, etc) recorded in this period.' },
+          { label: 'Total Sessions', value: s.totalSessions, tooltip: 'Total number of sessions during this period.' },
+          { label: 'Conversion Rate', value: s.totalSessions ? `${((s.conversions / s.totalSessions) * 100).toFixed(2)}%` : '—', tooltip: 'Percentage of sessions that resulted in a conversion.' },
         ],
       },
     },
@@ -227,9 +229,9 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
         title: '⚡ Events & Session Sources',
         description: 'Event volume and where sessions actually came from for the selected period (real data from Google Analytics).',
         rows: [
-          { label: 'Total Events', value: s.eventCount },
-          { label: 'Avg. Engagement Time per User', value: s.avgEngagementTimePerUser },
-          ...rowsFromBreakdown(b.sessionSourceMedium),
+          { label: 'Total Events', value: s.eventCount, tooltip: 'Total number of all tracked events (page views, clicks, form submissions, etc).' },
+          { label: 'Avg. Engagement Time per User', value: s.avgEngagementTimePerUser, tooltip: 'Average active engagement time per visitor across all their sessions.' },
+          ...rowsFromBreakdown(b.sessionSourceMedium).map((r) => ({ ...r, tooltip: 'Actual traffic source/medium combination for your sessions.' })),
         ],
       },
     },
@@ -243,8 +245,8 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
         title: '📍 Top Locations',
         description: 'Active users by city for the selected period (real data from Google Analytics). "Not Set" indicates sessions where location data was unavailable (users blocked location, direct traffic, bot traffic, etc.).',
         rows: rowsFromBreakdown(b.cityBreakdown).length > 0
-          ? rowsFromBreakdown(b.cityBreakdown)
-          : [{ label: 'No location data available', value: '' }],
+          ? rowsFromBreakdown(b.cityBreakdown).map((r) => ({ ...r, tooltip: 'Number of active users from this city. (Not Set) = location data unavailable.' }))
+          : [{ label: 'No location data available', value: '', tooltip: '' }],
       },
     },
   ];
@@ -344,7 +346,10 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
               <tbody>
                 {drilldown.rows.map((row, i) => (
                   <tr key={i} style={{ cursor: row.link ? 'pointer' : 'default' }} onClick={() => row.link && window.open(row.link, '_blank')}>
-                    <td>{row.label}</td>
+                    <td style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {row.label}
+                      {row.tooltip && <InfoTooltip text={row.tooltip} />}
+                    </td>
                     <td className="amount" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                       {row.value ?? '—'}
                       {row.link && <span style={{ fontSize: '12px', color: '#667eea' }}>↗</span>}
