@@ -145,9 +145,10 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
       drilldown: {
         title: '📈 Sessions by Channel',
         description: 'Where your sessions came from in the selected period (real data from Google Analytics).',
-        rows: rowsFromBreakdown(b.channelBreakdown).length > 0
-          ? rowsFromBreakdown(b.channelBreakdown)
-          : [{ label: 'No channel data available', value: '' }],
+        rows: (() => {
+          const filtered = rowsFromBreakdown(b.channelBreakdown);
+          return filtered.length > 0 ? filtered : [{ label: 'No channel data available', value: '' }];
+        })(),
       },
     },
     {
@@ -159,13 +160,15 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
       drilldown: {
         title: '📄 Top Pages',
         description: 'Most-viewed pages in the selected period (real data from Google Analytics). Click any page to visit it.',
-        rows: rowsFromBreakdown(b.topPages).length > 0
-          ? (b.topPages || []).map((page) => ({
-              label: page.label,
-              value: page.value,
-              link: page.label.startsWith('/') ? `https://www.textra.video${page.label}` : `https://www.textra.video/${page.label}`,
-            }))
-          : [{ label: 'No page data available', value: '' }],
+        rows: (() => {
+          const filtered = rowsFromBreakdown(b.topPages);
+          return filtered.length > 0
+            ? filtered.map((r) => ({
+                ...r,
+                link: r.label.startsWith('/') ? `https://www.textra.video${r.label}` : `https://www.textra.video/${r.label}`
+              }))
+            : [{ label: 'No page data available', value: '' }];
+        })(),
       },
     },
     {
@@ -242,9 +245,10 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
       drilldown: {
         title: '📍 Top Locations',
         description: 'Active users by city for the selected period (real data from Google Analytics). "Not Set" indicates sessions where location data was unavailable (users blocked location, direct traffic, bot traffic, etc.).',
-        rows: rowsFromBreakdown(b.cityBreakdown).length > 0
-          ? rowsFromBreakdown(b.cityBreakdown)
-          : [{ label: 'No location data available', value: '' }],
+        rows: (() => {
+          const filtered = rowsFromBreakdown(b.cityBreakdown);
+          return filtered.length > 0 ? filtered : [{ label: 'No location data available', value: '' }];
+        })(),
       },
     },
   ];
