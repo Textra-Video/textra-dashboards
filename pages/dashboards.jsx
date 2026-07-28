@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
-import axios from 'axios';
 import SalesDashboard from '../components/SalesDashboard';
 import FinanceDashboard from '../components/FinanceDashboard';
 import MarketingDashboard from '../components/MarketingDashboard';
@@ -10,9 +9,7 @@ export default function Dashboards() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('sales');
-  const [loginLog, setLoginLog] = useState([]);
   const [oauthError, setOauthError] = useState(null);
-  const [showLoginLog, setShowLoginLog] = useState(false);
 
   useEffect(() => {
     // Check if user is logged in
@@ -22,14 +19,6 @@ export default function Dashboards() {
       return;
     }
     setUser(savedUser);
-
-    // Login log is shared (Redis-backed) - visible to every user/device.
-    axios
-      .get('/api/data/login-log')
-      .then((res) => {
-        if (res.data.success) setLoginLog(res.data.entries);
-      })
-      .catch(() => {});
   }, [router]);
 
   useEffect(() => {
@@ -112,26 +101,6 @@ export default function Dashboards() {
         {activeTab === 'sales' && <SalesDashboard user={user} />}
         {activeTab === 'finance' && <FinanceDashboard user={user} />}
         {activeTab === 'marketing' && <MarketingDashboard user={user} />}
-
-        <div className="chart-container login-log-card">
-          <button className="login-log-toggle" onClick={() => setShowLoginLog((v) => !v)}>
-            <span className="chart-title" style={{ marginBottom: 0 }}>
-              Login Activity ({loginLog.length}) — shared across all users
-            </span>
-            <span className="login-log-caret">{showLoginLog ? '▲' : '▼'}</span>
-          </button>
-          {showLoginLog && (
-            <div className="login-log-list">
-              {loginLog.length === 0 && <p className="last-updated">No login activity recorded yet.</p>}
-              {loginLog.map((entry, i) => (
-                <div key={i} className="login-log-row">
-                  <span>{entry.user}</span>
-                  <span className="last-updated">{new Date(entry.timestamp).toLocaleString('en-GB')}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
