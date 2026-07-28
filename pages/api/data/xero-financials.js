@@ -168,12 +168,14 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
 
     // data.invoices = unpaid invoices (any status except PAID, VOIDED, DELETED)
     // Show any invoice that's not fully paid or cancelled
+    // For outstanding invoices: filter by start date only (not end date)
+    // because outstanding invoices may be dated in the future
     const outstandingInvoices = allInvoices.filter((inv) => {
       return inv.Type === 'ACCREC' &&
              inv.Status !== 'PAID' &&
              inv.Status !== 'VOIDED' &&
              inv.Status !== 'DELETED' &&
-             isInvoiceInDateRange(inv, startDate, endDate);
+             isInvoiceInDateRange(inv, startDate, null);
     });
     console.log(`[Xero] Outstanding invoices (all non-PAID) - total: ${outstandingInvoices.length}`);
     outstandingInvoices.forEach(i => console.log(`  ${i.InvoiceNumber}: Status=${i.Status}, Total=${i.Total}, DateString=${i.DateString}`));
