@@ -166,14 +166,17 @@ async function fetchFinancialData(accessToken, tenantId, { startDate, endDate } 
       };
     };
 
-    // data.invoices = unpaid invoices (SUBMITTED, AUTHORISED, DRAFT) (for Accounts Receivable card)
-    // Excludes PAID and DRAFT invoices
+    // data.invoices = unpaid invoices (any status except PAID, VOIDED, DELETED)
+    // Show any invoice that's not fully paid or cancelled
     const outstandingInvoices = allInvoices.filter((inv) => {
       return inv.Type === 'ACCREC' &&
-             (inv.Status === 'SUBMITTED' || inv.Status === 'AUTHORISED') &&
+             inv.Status !== 'PAID' &&
+             inv.Status !== 'VOIDED' &&
+             inv.Status !== 'DELETED' &&
              isInvoiceInDateRange(inv, startDate, endDate);
     });
-    console.log(`[Xero] Outstanding invoices after filter: ${outstandingInvoices.length}`, outstandingInvoices.map(i => ({ num: i.InvoiceNumber, status: i.Status, total: i.Total })));
+    console.log(`[Xero] Outstanding invoices (all non-PAID) - total: ${outstandingInvoices.length}`);
+    outstandingInvoices.forEach(i => console.log(`  ${i.InvoiceNumber}: Status=${i.Status}, Total=${i.Total}, DateString=${i.DateString}`));
     data.invoices = outstandingInvoices.map(formatInvoiceForDisplay);
     data.totalReceivable = outstandingInvoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
 
