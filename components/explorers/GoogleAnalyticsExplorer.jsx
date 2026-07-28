@@ -96,6 +96,13 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
   const rowsFromBreakdown = (items) =>
     (items || []).map((item) => ({ label: item.label, value: item.value }));
 
+  // Get first non-"Not Set" location for card display
+  const getTopLocationLabel = () => {
+    const cities = b.cityBreakdown || [];
+    const topCity = cities.find(c => c.label && c.label !== 'Not Set');
+    return topCity?.label || '—';
+  };
+
   const primaryCards = [
     {
       key: 'totalUsers',
@@ -136,9 +143,13 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
       tooltip: 'Total pages viewed in the selected period (includes repeat views of the same page).',
       drilldown: {
         title: '📄 Top Pages',
-        description: 'Most-viewed pages in the selected period (real data from Google Analytics).',
+        description: 'Most-viewed pages in the selected period (real data from Google Analytics). Click any page to visit it.',
         rows: rowsFromBreakdown(b.topPages).length > 0
-          ? rowsFromBreakdown(b.topPages)
+          ? (b.topPages || []).map((page) => ({
+              label: page.label,
+              value: page.value,
+              link: page.label.startsWith('/') ? `https://www.textra.video${page.label}` : `https://www.textra.video/${page.label}`
+            }))
           : [{ label: 'No page data available', value: '' }],
       },
     },
@@ -209,11 +220,11 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
       key: 'topLocations',
       icon: '📍',
       label: 'Top Locations',
-      value: (b.cityBreakdown || [])[0]?.label || '—',
+      value: getTopLocationLabel(),
       tooltip: 'City with the most active users in the selected period.',
       drilldown: {
         title: '📍 Top Locations',
-        description: 'Active users by city for the selected period (real data from Google Analytics).',
+        description: 'Active users by city for the selected period (real data from Google Analytics). "Not Set" indicates sessions where location data was unavailable (users blocked location, direct traffic, bot traffic, etc.).',
         rows: rowsFromBreakdown(b.cityBreakdown).length > 0
           ? rowsFromBreakdown(b.cityBreakdown)
           : [{ label: 'No location data available', value: '' }],
@@ -315,9 +326,12 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
             <table className="drilldown-table">
               <tbody>
                 {drilldown.rows.map((row, i) => (
-                  <tr key={i}>
+                  <tr key={i} style={{ cursor: row.link ? 'pointer' : 'default' }} onClick={() => row.link && window.open(row.link, '_blank')}>
                     <td>{row.label}</td>
-                    <td className="amount">{row.value ?? '—'}</td>
+                    <td className="amount" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                      {row.value ?? '—'}
+                      {row.link && <span style={{ fontSize: '12px', color: '#667eea' }}>↗</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>

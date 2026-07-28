@@ -369,9 +369,12 @@ export default function LinkedInExplorer({ onMetricSelect }) {
             <table className="drilldown-table">
               <tbody>
                 {drilldown.rows.map((row, i) => (
-                  <tr key={i}>
+                  <tr key={i} style={{ cursor: row.link ? 'pointer' : 'default' }} onClick={() => row.link && window.open(row.link, '_blank')}>
                     <td>{row.label}</td>
-                    <td className="amount">{row.value ?? '—'}</td>
+                    <td className="amount" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                      {row.value ?? '—'}
+                      {row.link && <span style={{ fontSize: '12px', color: '#0077B5' }}>↗</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -380,13 +383,6 @@ export default function LinkedInExplorer({ onMetricSelect }) {
         </div>
       )}
 
-      {/* Not-yet-available metrics */}
-      {data.metrics && Object.entries(data.metrics).some(([, items]) => items?.length > 0) && (
-        <div style={{ marginTop: '8px', padding: '12px', background: '#fff8e6', borderRadius: '4px', fontSize: '12px', color: '#8a6d1a' }}>
-          ⚠️ Not yet available via LinkedIn's API (needs a separate integration or per-post IDs we don't have):{' '}
-          {Object.values(data.metrics).flat().join(', ')}
-        </div>
-      )}
     </div>
   );
 }
