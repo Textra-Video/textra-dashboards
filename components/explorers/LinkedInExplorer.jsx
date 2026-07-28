@@ -157,8 +157,8 @@ export default function LinkedInExplorer({ onMetricSelect }) {
             },
             { label: 'Organic', value: organic },
             { label: 'Paid / Sponsored', value: paid },
-            { label: 'Calculated Total (Organic + Paid)', value: calculated, tooltip: 'Should equal Total above.' },
-            { label: 'Unique Impressions', value: s.uniqueImpressions, tooltip: 'Distinct people.' },
+            { label: 'Calculated Total (Organic + Paid)', value: calculated },
+            { label: 'Unique Impressions', value: s.uniqueImpressions },
           ];
         })(),
       },
@@ -396,10 +396,7 @@ export default function LinkedInExplorer({ onMetricSelect }) {
               <tbody>
                 {drilldown.rows.map((row, i) => (
                   <tr key={i} style={{ cursor: row.link ? 'pointer' : 'default' }} onClick={() => row.link && window.open(row.link, '_blank')}>
-                    <td style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {row.label}
-                      {row.tooltip && <InfoTooltip text={row.tooltip} />}
-                    </td>
+                    <td>{row.label}</td>
                     <td className="amount" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                       {row.value ?? '—'}
                       {row.link && <span style={{ fontSize: '12px', color: '#0077B5' }}>↗</span>}

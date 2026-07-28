@@ -130,7 +130,7 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
             },
             { label: 'New Users', value: newUsers },
             { label: 'Returning Users', value: returning },
-            { label: 'Calculated Total (New + Returning)', value: calculated, tooltip: 'Should equal Total Users above.' },
+            { label: 'Calculated Total (New + Returning)', value: calculated },
             ...rowsFromBreakdown(b.firstUserSourceMedium).map((r) => ({ label: `First touch: ${r.label}`, value: r.value })),
           ];
         })(),
@@ -182,7 +182,7 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
         description: 'Session engagement metrics for the selected period. Engagement Rate and Bounce Rate are inverses.',
         rows: [
           { label: 'Engagement Rate', value: s.engagementRate },
-          { label: 'Bounce Rate (inverse)', value: s.bounceRate, tooltip: 'Opposite of Engagement Rate above.' },
+          { label: 'Bounce Rate (inverse)', value: s.bounceRate },
           { label: 'Engaged Sessions vs Total', value: s.totalSessions ? `${((parseFloat(s.engagementRate) / 100) * s.totalSessions).toFixed(0)} of ${s.totalSessions}` : '—' },
           { label: 'Avg. Time in Engaged Sessions', value: s.averageSessionDuration },
           { label: 'Conversion Rate', value: s.totalSessions ? `${((s.conversions / s.totalSessions) * 100).toFixed(2)}%` : '—' },
@@ -348,10 +348,7 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
               <tbody>
                 {drilldown.rows.map((row, i) => (
                   <tr key={i} style={{ cursor: row.link ? 'pointer' : 'default' }} onClick={() => row.link && window.open(row.link, '_blank')}>
-                    <td style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {row.label}
-                      {row.tooltip && <InfoTooltip text={row.tooltip} />}
-                    </td>
+                    <td>{row.label}</td>
                     <td className="amount" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                       {row.value ?? '—'}
                       {row.link && <span style={{ fontSize: '12px', color: '#667eea' }}>↗</span>}
