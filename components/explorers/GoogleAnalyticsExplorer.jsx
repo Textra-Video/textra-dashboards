@@ -99,8 +99,12 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
   // Get first non-"Not Set" location for card display
   const getTopLocationLabel = () => {
     const cities = b.cityBreakdown || [];
-    const topCity = cities.find(c => c.label && c.label !== 'Not Set');
-    return topCity?.label || '—';
+    if (!cities || cities.length === 0) return '—';
+    // Find first non-"Not Set" location
+    const validCity = cities.find(c => c && c.label && c.label.trim() !== '' && c.label !== '(not set)' && c.label.toLowerCase() !== 'not set');
+    if (validCity) return validCity.label;
+    // If all are "Not Set", show the one with most activity
+    return cities[0]?.label || '—';
   };
 
   const primaryCards = [
