@@ -145,51 +145,49 @@ Provide a direct, actionable answer. If relevant, cite specific numbers from the
 function formatSalesData(data) {
   if (!data) return 'No data available';
 
-  const {
-    summary = {},
-    deals = [],
-    stageBreakdown = [],
-    sourceBreakdown = [],
-    sizeBreakdown = [],
-  } = data;
-
   let context = '### SUMMARY METRICS\n';
-  if (summary.totalPipeline)
-    context += `Total Pipeline: £${summary.totalPipeline}\n`;
-  if (summary.confirmedBookings)
-    context += `Confirmed Bookings (all-time): £${summary.confirmedBookings}\n`;
-  if (summary.thisMonthClose)
-    context += `This Month Close (forecast): £${summary.thisMonthClose}\n`;
-  if (summary.monthlyRunRate)
-    context += `Monthly Run Rate: £${summary.monthlyRunRate}\n`;
-  if (summary.avgSalesCycle)
-    context += `Average Sales Cycle: ${summary.avgSalesCycle}\n`;
 
-  if (stageBreakdown && stageBreakdown.length > 0) {
+  // Extract metrics from top-level data object
+  if (data.totalPipeline !== undefined && data.totalPipeline !== null)
+    context += `Total Pipeline: £${data.totalPipeline}\n`;
+  if (data.confirmedBookings !== undefined && data.confirmedBookings !== null)
+    context += `Confirmed Bookings (all-time): £${data.confirmedBookings}\n`;
+  if (data.thisMonthClose !== undefined && data.thisMonthClose !== null)
+    context += `This Month Close (forecast): £${data.thisMonthClose}\n`;
+  if (data.monthlyRunRate !== undefined && data.monthlyRunRate !== null)
+    context += `Monthly Run Rate: £${data.monthlyRunRate}\n`;
+  if (data.avgSalesCycle !== undefined && data.avgSalesCycle !== null)
+    context += `Average Sales Cycle: ${data.avgSalesCycle}d\n`;
+
+  // Stage breakdown
+  if (data.byStage && typeof data.byStage === 'object' && Object.keys(data.byStage).length > 0) {
     context += '\n### DEALS BY STAGE\n';
-    stageBreakdown.forEach(s => {
-      context += `${s.label}: £${s.value || 0}\n`;
+    Object.entries(data.byStage).forEach(([stage, value]) => {
+      context += `${stage}: £${value}\n`;
     });
   }
 
-  if (sourceBreakdown && sourceBreakdown.length > 0) {
+  // Source breakdown
+  if (data.bySource && typeof data.bySource === 'object' && Object.keys(data.bySource).length > 0) {
     context += '\n### DEALS BY SOURCE\n';
-    sourceBreakdown.forEach(s => {
-      context += `${s.label}: £${s.value || 0}\n`;
+    Object.entries(data.bySource).forEach(([source, value]) => {
+      context += `${source}: £${value}\n`;
     });
   }
 
-  if (sizeBreakdown && sizeBreakdown.length > 0) {
+  // Size breakdown
+  if (data.bySize && typeof data.bySize === 'object') {
     context += '\n### DEALS BY SIZE\n';
-    sizeBreakdown.forEach(s => {
-      context += `${s.label}: £${s.value || 0}\n`;
-    });
+    if (data.bySize.micro !== undefined) context += `Micro (<£10k): £${data.bySize.micro}\n`;
+    if (data.bySize.sme !== undefined) context += `SME (£10-50k): £${data.bySize.sme}\n`;
+    if (data.bySize.enterprise !== undefined) context += `Enterprise (>£50k): £${data.bySize.enterprise}\n`;
   }
 
-  if (deals && deals.length > 0 && deals.length <= 10) {
+  // Recent deals
+  if (data.deals && Array.isArray(data.deals) && data.deals.length > 0) {
     context += '\n### RECENT DEALS\n';
-    deals.slice(0, 5).forEach(deal => {
-      context += `${deal.name}: £${deal.amount} (${deal.stage})\n`;
+    data.deals.slice(0, 5).forEach(deal => {
+      context += `${deal.name}: £${deal.value} (${deal.stage})\n`;
     });
   }
 
