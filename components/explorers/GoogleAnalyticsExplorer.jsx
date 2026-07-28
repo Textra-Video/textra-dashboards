@@ -94,7 +94,7 @@ export default function GoogleAnalyticsExplorer({ onMetricSelect }) {
   const b = data.breakdowns || {};
 
   const rowsFromBreakdown = (items) =>
-    (items || []).map((item) => ({ label: item.label, value: item.value }));
+    (items || []).filter((item) => item.label && item.label.trim() !== '').map((item) => ({ label: item.label, value: item.value }));
 
   // Get first non-"Not Set" location for card display
   const getTopLocationLabel = () => {
