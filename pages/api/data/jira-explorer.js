@@ -12,7 +12,9 @@ function authHeader() {
 }
 
 async function jqlCount(baseUrl, jql) {
-  const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=0`;
+  // maxResults=0 is rejected ("must be between 1 and 5,000") - fetch the
+  // minimum (1) and read the 'total' field instead.
+  const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=1&fields=summary`;
   const res = await fetch(url, {
     headers: { Authorization: authHeader(), Accept: 'application/json' },
   });
